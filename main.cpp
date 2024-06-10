@@ -26,13 +26,6 @@
 #include <util/work_meter.h>
 #include <tusb.h>
 
-#include "system.h"
-
-#include "joypad.h"
-#include "cpu.h"
-#include "mem.h"
-#include "rom.h"
-#include "vram.h"
 
 #include "mytypes.h"
 #include "gamepad.h"
@@ -40,7 +33,7 @@
 #include "nespad.h"
 #include "wiipad.h"
 #include "FrensHelpers.h"
-#include "joypad.h"
+
 #ifdef __cplusplus
 
 #include "ff.h"
@@ -545,34 +538,6 @@ int ProcessAfterFrameIsRendered()
     }
     return count;
 }
-int infogb_init(char *display)
-{
-    printf("infogb_init\n");
-    return 0;
-}
-
-int infogb_close()
-{
-    printf("infogb_close\n");
-    return 0;
-}
-int infogb_create_window(char *title, int width, int height)
-{
-    printf("infogb_create_window\n");
-    return 0;
-}
-int __not_in_flash_func(infogb_poll_events)()
-{
-    // printf("infogb_poll_events\n");
-    DWORD pdwPad1, pdwPad2, pdwSystem; // have only meaning in menu
-    processinput(&pdwPad1, &pdwPad2, &pdwSystem, false);
-    return 1;
-}
-
-void infogb_wait()
-{
-    printf("infogb_wait\n");
-}
 
 void __not_in_flash_func(infogb_vram_blit)()
 {
@@ -602,14 +567,6 @@ void __not_in_flash_func(infogb_vram_blit)()
     return;
 }
 
-void __not_in_flash_func(infogb_set_color)(int index, unsigned short rgb555)
-{
-    // convert to rgb444 for DVI library
-    printf("infogb_set_color %d %x\n", index, rgb555);
-    unsigned short rgb444 = (((rgb555 & 0x7C00) >> 11) << 8) | (((rgb555 & 0x03E0) >> 6) << 4) | ((rgb555 & 0x001F) >> 1);
-    rgbtab[index & 0xff] = rgb444;
-}
-
 //WORD tmpbuffer[512];
 WORD *__not_in_flash_func(infoGB_getlinebuffer)() {
 
@@ -628,74 +585,6 @@ void __not_in_flash_func(infogb_plot_line)(int line, int *buffer)
   
     line+= MARGINTOP;
     dvi_->setLineBuffer(line, currentLineBuffer_);
-}
-void __not_in_flash_func(infogb_plot_lineold)(int line, int *buffer)
-{
-    // DVI top margin has #MARGINTOP lines
-    // DVI bottom margin has #MARGINBOTTOM lines
-    // DVI usable screen estate: MARGINTOP .. (240 - #MARGINBOTTOM)
-    // Game Boy resolution is 160x144 (columns x lines)
-    // Emulator loops from scanline ? to ???
-    // Audio needs to be processed per scanline
-    // processaudio(line);
-    line += MARGINTOP;
-    // Only render lines that are visible on the screen, keeping into account top and bottom margins
-    if (line < MARGINTOP || line >= 240 - MARGINBOTTOM)
-        return;
-
-    //return;
-    auto b = dvi_->getLineBuffer();
-    uint16_t *sbuffer;
-    if (buffer)
-    {
-
-        uint16_t *sbuffer = b->data() + 80;
-        for (int i = 0; i < 168; i++)
-        {
-             sbuffer[i] = rgbtab[buffer[i] & 0xff];
-        }
-        //  __builtin_memset(sbuffer, 0, 512);
-    }
-    else
-    {
-        sbuffer = b->data() + 32;
-        __builtin_memset(sbuffer, 0, 512);
-    }
-    // Display frame rate
-    if (fps_enabled && line >= FPSSTART && line < FPSEND)
-    {
-        // WORD *fpsBuffer = b->data() + 40;
-        // int rowInChar = line % 8;
-        // for (auto i = 0; i < 2; i++)
-        // {
-        //     char firstFpsDigit = fpsString[i];
-        //     char fontSlice = getcharslicefrom8x8font(firstFpsDigit, rowInChar);
-        //     for (auto bit = 0; bit < 8; bit++)
-        //     {
-        //         if (fontSlice & 1)
-        //         {
-        //             *fpsBuffer++ = fpsfgcolor;
-        //         }
-        //         else
-        //         {
-        //             *fpsBuffer++ = fpsbgcolor;
-        //         }
-        //         fontSlice >>= 1;
-        //     }
-        // }
-    }
-    dvi_->setLineBuffer(line, b);
-    // while ( ++line < 240 - MARGINBOTTOM ) {
-    //     b = dvi_->getLineBuffer();
-    //     sbuffer = b->data() + 32;
-    //     __builtin_memset(sbuffer, 0, 512);
-    //      dvi_->setLineBuffer(line, b);
-    // }
-}
-
-void __not_in_flash_func(infogb_write_sample)(short int left, short int right)
-{
-    // printf("infogb_write_sample\n");
 }
 
 void __not_in_flash_func(process)(void)
@@ -947,18 +836,7 @@ int main()
 #endif
         if (load_rom(selectedRom, reinterpret_cast<unsigned char *>(GB_FILE_ADDR)))
         {
-            if (initialize_memory() == 0)
-            {
-                free_memory();
-
-                printf("Unable to allocate memory\n");
-                break;
-            }
-            initialize_rom();
-            printf("Starting game\n");
-            gameboy_cpu_hardreset();
-
-            gameboy_cpu_run();
+           
 
             selectedRom[0] = 0;
         }
