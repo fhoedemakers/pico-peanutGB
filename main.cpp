@@ -723,7 +723,7 @@ int main()
 
     stdio_init_all();
     sleep_ms(500);
-    printf("Starting Master System Emulator\n");
+    printf("Starting Game Boy Emulator\n");
 
 #if LED_GPIO_PIN != -1
     gpio_init(LED_GPIO_PIN);
