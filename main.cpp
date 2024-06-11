@@ -504,33 +504,7 @@ int ProcessAfterFrameIsRendered()
     return count;
 }
 
-void __not_in_flash_func(infogb_vram_blit)()
-{
-#if NES_PIN_CLK != -1
-    nespad_read_start();
-#endif
-    auto count = dvi_->getFrameCounter();
-    auto onOff = hw_divider_s32_quotient_inlined(count, 60) & 1;
-#if LED_GPIO_PIN != -1
-    gpio_put(LED_GPIO_PIN, onOff);
-#endif
-#if NES_PIN_CLK != -1
-    nespad_read_finish(); // Sets global nespad_state var
-#endif
-    // nespad_read_finish(); // Sets global nespad_state var
-    tuh_task();
-    // Frame rate calculation
-    if (fps_enabled)
-    {
-        // calculate fps and round to nearest value (instead of truncating/floor)
-        uint32_t tick_us = time_us() - start_tick_us;
-        fps = (1000000 - 1) / tick_us + 1;
-        start_tick_us = time_us();
-        fpsString[0] = '0' + (fps / 10);
-        fpsString[1] = '0' + (fps % 10);
-    }
-    return;
-}
+
 
 // WORD tmpbuffer[512];
 WORD *__not_in_flash_func(infoGB_getlinebuffer)()
@@ -953,7 +927,8 @@ int main()
 
 #if ENABLE_LCD
         gb_init_lcd(&gb, &lcd_draw_line);
-        // gb.direct.interlace = true;
+        gb.direct.interlace = false;
+        //gb.direct.frame_skip = 8;
 #endif
         while(true) {
             gb_run_frame(&gb);

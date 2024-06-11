@@ -761,17 +761,16 @@ uint8_t __not_in_flash_func(__gb_read)(struct gb_s *gb, uint16_t addr)
 	case 0x1:
 	case 0x2:
 	case 0x3:
-		return gb->gb_rom_read(gb, addr);
+		return GBaddress[addr]; //->gb_rom_read(gb, addr);
 
 	case 0x4:
 	case 0x5:
 	case 0x6:
 	case 0x7:
 		if(gb->mbc == 1 && gb->cart_mode_select)
-			return gb->gb_rom_read(gb,
-					       addr + ((gb->selected_rom_bank & 0x1F) - 1) * ROM_BANK_SIZE);
+			return GBaddress[addr + ((gb->selected_rom_bank & 0x1F) - 1) * ROM_BANK_SIZE]; // gb->gb_rom_read(gb,addr + ((gb->selected_rom_bank & 0x1F) - 1) * ROM_BANK_SIZE);
 		else
-			return gb->gb_rom_read(gb, addr + (gb->selected_rom_bank - 1) * ROM_BANK_SIZE);
+			return GBaddress[addr + (gb->selected_rom_bank - 1) * ROM_BANK_SIZE]; // gb->gb_rom_read(gb, addr + (gb->selected_rom_bank - 1) * ROM_BANK_SIZE);
 
 	case 0x8:
 	case 0x9:
@@ -1729,7 +1728,7 @@ void __not_in_flash_func(__gb_step_cpu)(struct gb_s *gb)
 {
 	uint8_t opcode;
 	uint_fast16_t inst_cycles;
-	static const uint8_t op_cycles[0x100] =
+	static const uint8_t __not_in_flash_func(op_cycles)[0x100] =
 	{
 		/* *INDENT-OFF* */
 		/*0 1 2  3  4  5  6  7  8  9  A  B  C  D  E  F	*/
@@ -1751,7 +1750,7 @@ void __not_in_flash_func(__gb_step_cpu)(struct gb_s *gb)
 		12,12,8, 4, 0,16, 8,16,12, 8,16, 4, 0, 0, 8,16	/* 0xF0 */
 		/* *INDENT-ON* */
 	};
-	static const uint_fast16_t TAC_CYCLES[4] = {1024, 16, 64, 256};
+	static const uint_fast16_t __not_in_flash_func(TAC_CYCLES)[4] = {1024, 16, 64, 256};
 
 	/* Handle interrupts */
 	/* If gb_halt is positive, then an interrupt must have occurred by the
@@ -3482,7 +3481,7 @@ uint_fast32_t gb_get_save_size(struct gb_s *gb)
 	{
 		0x00, 0x800, 0x2000, 0x8000, 0x20000
 	};
-	uint8_t ram_size = gb->gb_rom_read(gb, ram_size_location);
+	uint8_t ram_size = GBaddress[ram_size_location];// gb->gb_rom_read(gb, ram_size_location);
 
 	/* MBC2 always has 512 half-bytes of cart RAM. */
 	if(gb->mbc == 2)
@@ -3509,7 +3508,7 @@ uint8_t gb_colour_hash(struct gb_s *gb)
 	uint16_t i;
 
 	for(i = ROM_TITLE_START_ADDR; i <= ROM_TITLE_END_ADDR; i++)
-		x += gb->gb_rom_read(gb, i);
+		x += GBaddress[i];// gb->gb_rom_read(gb, i);
 
 	return x;
 }
@@ -3532,7 +3531,7 @@ void gb_reset(struct gb_s *gb)
 	if(gb->gb_bootrom_read == NULL)
 	{
 		uint8_t hdr_chk;
-		hdr_chk = gb->gb_rom_read(gb, ROM_HEADER_CHECKSUM_LOC) != 0;
+		hdr_chk = GBaddress[ROM_HEADER_CHECKSUM_LOC] != 0;// gb->gb_rom_read(gb, ROM_HEADER_CHECKSUM_LOC) != 0;
 
 		gb->cpu_reg.a = 0x01;
 		gb->cpu_reg.f.f_bits.z = 1;
@@ -3650,24 +3649,24 @@ enum gb_init_error_e gb_init(struct gb_s *gb,
 		uint16_t i;
 
 		for(i = 0x0134; i <= 0x014C; i++)
-			x = x - gb->gb_rom_read(gb, i) - 1;
+			x = x - GBaddress[i] -1; // gb->gb_rom_read(gb, i) - 1;
 
-		if(x != gb->gb_rom_read(gb, ROM_HEADER_CHECKSUM_LOC))
+		if(x !=  GBaddress[ROM_HEADER_CHECKSUM_LOC]) // gb->gb_rom_read(gb, ROM_HEADER_CHECKSUM_LOC))
 			return GB_INIT_INVALID_CHECKSUM;
 	}
 
 	/* Check if cartridge type is supported, and set MBC type. */
 	{
-		const uint8_t mbc_value = gb->gb_rom_read(gb, mbc_location);
+		const uint8_t mbc_value = GBaddress[mbc_location];// gb->gb_rom_read(gb, mbc_location);
 
 		if(mbc_value > sizeof(cart_mbc) - 1 ||
 				(gb->mbc = cart_mbc[mbc_value]) == -1)
 			return GB_INIT_CARTRIDGE_UNSUPPORTED;
 	}
 
-	gb->cart_ram = cart_ram[gb->gb_rom_read(gb, mbc_location)];
-	gb->num_rom_banks_mask = num_rom_banks_mask[gb->gb_rom_read(gb, bank_count_location)] - 1;
-	gb->num_ram_banks = num_ram_banks[gb->gb_rom_read(gb, ram_size_location)];
+	gb->cart_ram = cart_ram[GBaddress[mbc_location]]; //cart_ram[gb->gb_rom_read(gb, mbc_location)];
+	gb->num_rom_banks_mask =  num_rom_banks_mask[GBaddress[bank_count_location]] - 1;//num_rom_banks_mask[gb->gb_rom_read(gb, bank_count_location)] - 1;
+	gb->num_ram_banks = num_ram_banks[GBaddress[ram_size_location]];//num_ram_banks[gb->gb_rom_read(gb, ram_size_location)];
 
 	/* Note that MBC2 will appear to have no RAM banks, but it actually
 	 * always has 512 half-bytes of RAM. Hence, gb->num_ram_banks must be
@@ -3690,7 +3689,7 @@ const char* gb_get_rom_name(struct gb_s* gb, char *title_str)
 
 	for(; title_loc <= title_end; title_loc++)
 	{
-		const char title_char = gb->gb_rom_read(gb, title_loc);
+		const char title_char = GBaddress[title_loc]; // gb->gb_rom_read(gb, title_loc);
 
 		if(title_char >= ' ' && title_char <= '_')
 		{
