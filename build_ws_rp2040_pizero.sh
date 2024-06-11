@@ -1,6 +1,6 @@
 :
 # ====================================================================================
-# PICOGB build script in RELEASE configuration
+# PicoPeanutGB build script in RELEASE configuration
 # Builds the emulator for use with the
 # Waveshare RP2040-PiZero
 # https://www.waveshare.com/rp2040-pizero.htm
@@ -12,7 +12,7 @@ if [ -d build ] ; then
 fi
 mkdir build || exit 1
 cd build || exit 1
-cmake -DCMAKE_BUILD_TYPE=RELEASE -DPICOGB_HW_CONFIG=4 ..
+cmake -DCMAKE_BUILD_TYPE=RELEASE -DPicoPeanutGB_HW_CONFIG=4 ..
 make -j 4
 cd ..
 #. ./removetmpsdk.sh

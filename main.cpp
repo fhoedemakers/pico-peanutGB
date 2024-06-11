@@ -26,13 +26,13 @@
 #include <util/work_meter.h>
 #include <tusb.h>
 
-
 #include "mytypes.h"
 #include "gamepad.h"
 #include "menu.h"
 #include "nespad.h"
 #include "wiipad.h"
 #include "FrensHelpers.h"
+#include "peanut_gb.h"
 
 #ifdef __cplusplus
 
@@ -70,29 +70,6 @@ static char fpsString[3] = "00";
 #define FPSEND ((FPSSTART) + 8)
 
 bool reset = false;
-
-#define APP_NAME "InfoGB v0.5J"
-#define VBLANK_INT 16.66667
-
-unsigned short rgbtab[256];
-
-gameboy_proc_t *current_processor = NULL;
-unsigned char gameboy_screen_mul = 1;
-force_type force_system = NONE;
-int infogb_ready = 0;
-
-// The Sega Master system color palette converted to RGB444
-// so it can be used with the DVI library.
-// from https://segaretro.org/Palette
-WORD SMSPaletteRGB444[64] = {
-    0x0, 0x500, 0xA00, 0xF00, 0x50, 0x550, 0xA50, 0xF50,
-    0xA0, 0x5A0, 0xAA0, 0xFA0, 0xF0, 0x5F0, 0xAF0, 0xFF0,
-    0x5, 0x505, 0xA05, 0xF05, 0x55, 0x555, 0xA55, 0xF55,
-    0xA5, 0x5A5, 0xAA5, 0xFA5, 0xF5, 0x5F5, 0xAF5, 0xFF5,
-    0xA, 0x50A, 0xA0A, 0xF0A, 0x5A, 0x55A, 0xA5A, 0xF5A,
-    0xAA, 0x5AA, 0xAAA, 0xFAA, 0xFA, 0x5FA, 0xAFA, 0xFFA,
-    0xF, 0x50F, 0xA0F, 0xF0F, 0x5F, 0x55F, 0xA5F, 0xF5F,
-    0xAF, 0x5AF, 0xAAF, 0xFAF, 0xFF, 0x5FF, 0xAFF, 0xFFF};
 
 namespace
 {
@@ -215,7 +192,7 @@ void __not_in_flash_func(drawWorkMeter)(int line)
     util::WorkMeterEnum(meterScale, 1, drawWorkMeterUnit);
 }
 
-bool  initSDCard()
+bool initSDCard()
 {
     FRESULT fr;
     TCHAR str[40];
@@ -411,18 +388,6 @@ static DWORD prevButtons[2]{};
 static DWORD prevButtonssystem[2]{};
 static DWORD prevOtherButtons[2]{};
 
-#define OTHER_BUTTON1 (0b1)
-#define OTHER_BUTTON2 (0b10)
-
-#define NESPAD_SELECT (0x04)
-#define NESPAD_START (0x08)
-#define NESPAD_UP (0x10)
-#define NESPAD_DOWN (0x20)
-#define NESPAD_LEFT (0x40)
-#define NESPAD_RIGHT (0x80)
-#define NESPAD_A (0x01)
-#define NESPAD_B (0x02)
-
 static int rapidFireMask[2]{};
 static int rapidFireCounter = 0;
 void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed)
@@ -435,14 +400,14 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
         int nespadbuttons = 0;
         auto &dst = (i == 0) ? *pdwPad1 : *pdwPad2;
         auto &gp = io::getCurrentGamePadState(i);
-        int gbbuttons = (gp.buttons & io::GamePadState::Button::LEFT ? GB_LEFT : 0) |
-                        (gp.buttons & io::GamePadState::Button::RIGHT ? GB_RIGHT : 0) |
-                        (gp.buttons & io::GamePadState::Button::UP ? GB_UP : 0) |
-                        (gp.buttons & io::GamePadState::Button::DOWN ? GB_DOWN : 0) |
-                        (gp.buttons & io::GamePadState::Button::A ? GB_A : 0) |
-                        (gp.buttons & io::GamePadState::Button::B ? GB_B : 0) |
-                        (gp.buttons & io::GamePadState::Button::SELECT ? GB_SELECT : 0) |
-                        (gp.buttons & io::GamePadState::Button::START ? GB_START : 0) | 0;
+        int gbbuttons = (gp.buttons & io::GamePadState::Button::LEFT ? LEFT : 0) |
+                        (gp.buttons & io::GamePadState::Button::RIGHT ? RIGHT : 0) |
+                        (gp.buttons & io::GamePadState::Button::UP ? UP : 0) |
+                        (gp.buttons & io::GamePadState::Button::DOWN ? DOWN : 0) |
+                        (gp.buttons & io::GamePadState::Button::A ? A : 0) |
+                        (gp.buttons & io::GamePadState::Button::B ? B : 0) |
+                        (gp.buttons & io::GamePadState::Button::SELECT ? SELECT : 0) |
+                        (gp.buttons & io::GamePadState::Button::START ? START : 0) | 0;
 
         if (i == 0)
         {
@@ -455,14 +420,14 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
 #endif
             if (nespadbuttons > 0)
             {
-                gbbuttons |= ((nespadbuttons & NESPAD_UP ? GB_UP : 0) |
-                              (nespadbuttons & NESPAD_DOWN ? GB_DOWN : 0) |
-                              (nespadbuttons & NESPAD_LEFT ? GB_LEFT : 0) |
-                              (nespadbuttons & NESPAD_RIGHT ? GB_RIGHT : 0) |
-                              (nespadbuttons & NESPAD_A ? GB_A : 0) |
-                              (nespadbuttons & NESPAD_B ? GB_B : 0) |
-                              (nespadbuttons & NESPAD_SELECT ? GB_SELECT : 0) |
-                              (nespadbuttons & NESPAD_START ? GB_START : 0) | 0);
+                gbbuttons |= ((nespadbuttons & NESPAD_UP ? UP : 0) |
+                              (nespadbuttons & NESPAD_DOWN ? DOWN : 0) |
+                              (nespadbuttons & NESPAD_LEFT ? LEFT : 0) |
+                              (nespadbuttons & NESPAD_RIGHT ? RIGHT : 0) |
+                              (nespadbuttons & NESPAD_A ? A : 0) |
+                              (nespadbuttons & NESPAD_B ? B : 0) |
+                              (nespadbuttons & NESPAD_SELECT ? SELECT : 0) |
+                              (nespadbuttons & NESPAD_START ? START : 0) | 0);
             }
         }
         // if (gp.buttons & io::GamePadState::Button::SELECT) printf("SELECT\n");
@@ -477,28 +442,28 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
         {
             pushed = gbbuttons;
         }
-        if (p1 & GB_SELECT)
+        if (p1 & SELECT)
         {
-            if (pushed & GB_START)
+            if (pushed & START)
             {
                 reset = true;
                 printf("Reset pressed\n");
             }
         }
-        if (p1 & GB_START)
+        if (p1 & START)
         {
             // Toggle frame rate display
-            if (pushed & GB_A)
+            if (pushed & A)
             {
                 // fps_enabled = !fps_enabled;
                 // printf("FPS: %s\n", fps_enabled ? "ON" : "OFF");
                 printf("FPS: %d\n", fps);
             }
-            if (pushed & GB_UP)
+            if (pushed & UP)
             {
                 screenMode(-1);
             }
-            else if (pushed & GB_DOWN)
+            else if (pushed & DOWN)
             {
                 screenMode(+1);
             }
@@ -567,14 +532,14 @@ void __not_in_flash_func(infogb_vram_blit)()
     return;
 }
 
-//WORD tmpbuffer[512];
-WORD *__not_in_flash_func(infoGB_getlinebuffer)() {
+// WORD tmpbuffer[512];
+WORD *__not_in_flash_func(infoGB_getlinebuffer)()
+{
 
-   
     uint16_t *sbuffer;
     // sbuffer = tmpbuffer;
     // return sbuffer;
-     auto b = dvi_->getLineBuffer();
+    auto b = dvi_->getLineBuffer();
     sbuffer = b->data() + 32;
     currentLineBuffer_ = b;
     return sbuffer;
@@ -582,8 +547,8 @@ WORD *__not_in_flash_func(infoGB_getlinebuffer)() {
 
 void __not_in_flash_func(infogb_plot_line)(int line, int *buffer)
 {
-  
-    line+= MARGINTOP;
+
+    line += MARGINTOP;
     dvi_->setLineBuffer(line, currentLineBuffer_);
 }
 
@@ -600,6 +565,134 @@ void __not_in_flash_func(process)(void)
 #endif
 }
 
+struct priv_t
+{
+    /* Pointer to allocated memory holding GB file. */
+    uint8_t *rom;
+    /* Pointer to allocated memory holding save file. */
+    uint8_t *cart_ram;
+
+    /* Frame buffer */
+};
+
+/**
+ * Returns a byte from the ROM file at the given address.
+ */
+uint8_t *address = (uint8_t *)GB_FILE_ADDR;
+uint8_t __not_in_flash_func(gb_rom_read)(struct gb_s *gb, const uint_fast32_t addr)
+{
+    // const struct priv_t * const p = gb->direct.priv;
+    // const struct priv_t *const p = static_cast<const struct priv_t *>(gb->direct.priv);
+    return address[addr];
+}
+
+/**
+ * Returns a byte from the cartridge RAM at the given address.
+ */
+uint8_t __not_in_flash_func(gb_cart_ram_read)(struct gb_s *gb, const uint_fast32_t addr)
+{
+    // const struct priv_t * const p = gb->direct.priv;
+    const struct priv_t *const p = static_cast<const struct priv_t *>(gb->direct.priv);
+    return p->cart_ram[addr];
+}
+
+/**
+ * Writes a given byte to the cartridge RAM at the given address.
+ */
+
+void __not_in_flash_func(gb_cart_ram_write)(struct gb_s *gb, const uint_fast32_t addr,
+                       const uint8_t val)
+{
+    // const struct priv_t * const p = gb->direct.priv;
+    const struct priv_t *const p = static_cast<const struct priv_t *>(gb->direct.priv);
+    p->cart_ram[addr] = val;
+}
+
+/**
+ * Returns a pointer to the allocated space containing the ROM. Must be freed.
+ */
+uint8_t *read_rom_to_ram(const char *file_name)
+{
+    uint8_t *rom = NULL;
+#if 0
+	FILE *rom_file = fopen(file_name, "rb");
+	size_t rom_size;
+	
+
+	if(rom_file == NULL)
+		return NULL;
+
+	fseek(rom_file, 0, SEEK_END);
+	rom_size = ftell(rom_file);
+	rewind(rom_file);
+	rom = malloc(rom_size);
+
+	if(fread(rom, sizeof(uint8_t), rom_size, rom_file) != rom_size)
+	{
+		free(rom);
+		fclose(rom_file);
+		return NULL;
+	}
+
+	fclose(rom_file);
+	return rom;
+#endif
+    return rom;
+}
+
+/**
+ * Ignore all errors.
+ */
+void gb_error(struct gb_s *gb, const enum gb_error_e gb_err, const uint16_t val)
+{
+    const char *gb_err_str[GB_INVALID_MAX] = {
+        "UNKNOWN",
+        "INVALID OPCODE",
+        "INVALID READ",
+        "INVALID WRITE",
+        "HALT FOREVER"};
+    // struct priv_t *priv = gb->direct.priv;
+    const struct priv_t *const priv = static_cast<const struct priv_t *>(gb->direct.priv);
+    printf("Error %d occurred: %s at %04X\n. Exiting.\n",
+           gb_err, gb_err_str[gb_err], val);
+
+    /* Free memory and then exit. */
+    free(priv->cart_ram);
+    free(priv->rom);
+    exit(EXIT_FAILURE);
+}
+
+#if ENABLE_LCD
+/**
+ * Draws scanline into framebuffer.
+ */
+void __not_in_flash_func(lcd_draw_line)(struct gb_s *gb, const uint8_t pixels[160],
+                   const uint_fast8_t line)
+{
+    const uint16_t palette444[] = {
+        0xF7DE, 0x7BEF, 0x39E7, 0x0000,
+    };
+#if 0
+	struct priv_t *priv = gb->direct.priv;
+	const uint32_t palette[] = { 0xFFFFFF, 0xA5A5A5, 0x525252, 0x000000 };
+
+	for(unsigned int x = 0; x < LCD_WIDTH; x++)
+		priv->fb[line][x] = palette[pixels[x] & 3];
+#endif
+    auto b = dvi_->getLineBuffer();
+    uint16_t *sbuffer = b->data() + 32;
+    for(unsigned int x = 0; x < LCD_WIDTH; x++) {
+        sbuffer[x] = palette444[pixels[x] & 3];
+    }
+    //printf("%d\n", line);
+    dvi_->setLineBuffer(line + MARGINTOP, b);
+}
+#endif
+
+bool load_rom(char *, unsigned char *)
+{
+    return true;
+}
 /// @brief
 /// Start emulator. Emulator does not run well in DEBUG mode, lots of red screen flicker. In order to keep it running fast enough, we need to run it in release mode or in
 /// RelWithDebugInfo mode.
@@ -611,7 +704,7 @@ int main()
     char errMSG[ERRORMESSAGESIZE];
     errMSG[0] = selectedRom[0] = 0;
     int fileSize = 0;
-    bool isGameGear = false;
+    bool isGameBoyColor = false;
     FIL fil;
     FIL fil2;
     FRESULT fr;
@@ -619,6 +712,10 @@ int main()
     size_t tmpSize;
 
     ErrorMessage = errMSG;
+
+    static struct gb_s gb;
+    static struct priv_t priv;
+    enum gb_init_error_e ret;
     // Set voltage and clock frequency
     vreg_set_voltage(VREG_VOLTAGE_1_20);
     sleep_ms(10);
@@ -657,9 +754,9 @@ int main()
             {
                 // determine file size
                 selectedRom[r] = 0;
-                isGameGear = Frens::cstr_endswith(selectedRom, ".gg");
+                isGameBoyColor = Frens::cstr_endswith(selectedRom, ".gc");
                 printf("Current game: %s\n", selectedRom);
-                printf("Console is %s\n", isGameGear ? "Game Gear" : "Master System");
+                printf("Console is %s\n", isGameBoyColor ? "Game Boy" : "Game Boy Color");
                 printf("Determine filesize of %s\n", selectedRom);
                 fr2 = f_open(&fil2, selectedRom, FA_READ);
                 if (fr2 == FR_OK)
@@ -826,20 +923,42 @@ int main()
         }
         reset = false;
         printf("Now playing: %s\n", selectedRom);
-#if 0
-        load_rom(fileSize, isGameGear);
-        // Initialize all systems and power on
-        system_init(SMS_AUD_RATE);
-        // load state if any
-        // system_load_state();
-        system_reset();
-#endif
-        if (load_rom(selectedRom, reinterpret_cast<unsigned char *>(GB_FILE_ADDR)))
-        {
-           
 
+        printf("Initialising Game Boy\n");
+        priv.rom = reinterpret_cast<unsigned char *>(GB_FILE_ADDR);
+        ret = gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
+                      &gb_cart_ram_write, &gb_error, &priv);
+
+        if (ret != GB_INIT_NO_ERROR)
+        {
+            snprintf(ErrorMessage, 40, "Cannot init emulator %d", ret);
+            printf("%s\n", ErrorMessage);
+            isFatalError = true;
             selectedRom[0] = 0;
+            continue;
         }
+        auto save_size = gb_get_save_size(&gb);
+        printf("Allocating %d bytes for cart ram.\n", save_size);
+        if (save_size > 0 && save_size <= 0x2000)
+        {
+            priv.cart_ram = (uint8_t *)malloc(save_size);
+        }
+        if (save_size > 0x2000)
+        {
+            printf("Save size too large, max 8KB\n");
+            isFatalError = true;
+            selectedRom[0] = 0;
+            continue;
+        }
+
+#if ENABLE_LCD
+        gb_init_lcd(&gb, &lcd_draw_line);
+        // gb.direct.interlace = true;
+#endif
+        while(true) {
+            gb_run_frame(&gb);
+        }
+        selectedRom[0] = 0;
     }
     return 0;
 }

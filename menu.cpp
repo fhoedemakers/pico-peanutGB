@@ -14,8 +14,10 @@
 #include "menu.h"
 #include "nespad.h"
 #include "wiipad.h"
-#include "system.h"
+
 #include "font_8x8.h"
+#include "mytypes.h"
+
 #define FONT_CHAR_WIDTH 8
 #define FONT_CHAR_HEIGHT 8
 #define FONT_N_CHARS 95
@@ -32,7 +34,6 @@
 extern util::ExclusiveProc exclProc_;
 extern std::unique_ptr<dvi::DVI> dvi_;
 void screenMode(int incr);
-extern WORD SMSPaletteRGB444[];
 
 #define CBLACK 0
 #define CWHITE 0x3f
@@ -59,14 +60,19 @@ static charCell *screenBuffer;
 
 static WORD *WorkLineRom = nullptr;
 
-static constexpr int LEFT = 0x02;
-static constexpr int RIGHT = 0x01;
-static constexpr int UP = 0x04;
-static constexpr int DOWN = 0x08;
-static constexpr int SELECT = 0x40;
-static constexpr int START = 0x80;
-static constexpr int A = 0x10;
-static constexpr int B = 0x20;
+// The Sega Master system color palette converted to RGB444
+// so it can be used with the DVI library.
+// from https://segaretro.org/Palette
+const WORD SMSPaletteRGB444[64] = {
+    0x0, 0x500, 0xA00, 0xF00, 0x50, 0x550, 0xA50, 0xF50,
+    0xA0, 0x5A0, 0xAA0, 0xFA0, 0xF0, 0x5F0, 0xAF0, 0xFF0,
+    0x5, 0x505, 0xA05, 0xF05, 0x55, 0x555, 0xA55, 0xF55,
+    0xA5, 0x5A5, 0xAA5, 0xFA5, 0xF5, 0x5F5, 0xAF5, 0xFF5,
+    0xA, 0x50A, 0xA0A, 0xF0A, 0x5A, 0x55A, 0xA5A, 0xF5A,
+    0xAA, 0x5AA, 0xAAA, 0xFAA, 0xFA, 0x5FA, 0xAFA, 0xFFA,
+    0xF, 0x50F, 0xA0F, 0xF0F, 0x5F, 0x55F, 0xA5F, 0xF5F,
+    0xAF, 0x5AF, 0xAAF, 0xFAF, 0xFF, 0x5FF, 0xAFF, 0xFFF};
+
 // static constexpr int X = 1 << 8;
 // static constexpr int Y = 1 << 9;
 
@@ -234,7 +240,7 @@ void showSplashScreen()
     char s[SCREEN_COLS];
     ClearScreen(screenBuffer, bgcolor);
 
-    strcpy(s, "PicoGB");
+    strcpy(s, "PicoPeanutGB");
     putText(SCREEN_COLS / 2 - (strlen(s)) / 2, 2, s, fgcolor, bgcolor);
 
     // putText((SCREEN_COLS / 2 - (strlen(s)) / 2) + 3, 2, "S", CRED, bgcolor);
@@ -274,7 +280,7 @@ void showSplashScreen()
 
     strcpy(s, "https://github.com/");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 21, s, CLIGHTBLUE, bgcolor);
-    strcpy(s, "fhoedemakers/PicoGB");
+    strcpy(s, "fhoedemakers/Pico-PeanutGB");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 22, s, CLIGHTBLUE, bgcolor);
     int startFrame = -1;
     while (true)
@@ -371,8 +377,8 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
 
     int horzontalScrollIndex = 0;
     printf("Starting Menu\n");
-    size_t menusize;
-    screenBuffer = (charCell *) GetMemoryForMenu(menusize); //(charCell *)malloc(SCREENBUFCELLS * sizeof(charCell));
+    size_t menusize = SCREENBUFCELLS * sizeof(charCell);
+    screenBuffer = (charCell *)malloc(menusize);
     printf("Allocated %d bytes for screenBuffer\n", menusize);
     size_t ramsize;
     // Borrow Emulator RAM buffer for screen.
@@ -380,8 +386,8 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
     /// size_t chr_size;
     // Borrow ChrBuffer to store directory contents
     // void *buffer = InfoNes_GetChrBuf(&chr_size);
-    size_t bufsize; // = 0x2000;
-    dirbuffer =(BYTE *) GetMemoryForMenuForDirs(bufsize); //(BYTE *)malloc(bufsize);
+    size_t bufsize = 0x2000;
+    dirbuffer =(BYTE *) (BYTE *)malloc(bufsize);
     printf("Allocated %d bytes for dirbuffer\n", bufsize); 
     
     Frens::RomLister romlister(dirbuffer, bufsize);

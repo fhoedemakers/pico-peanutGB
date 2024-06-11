@@ -66,7 +66,7 @@ namespace Frens
 				struct RomEntry romInfo;
 				strcpy(romInfo.Path, file.fname);
 				romInfo.IsDirectory = file.fattrib & AM_DIR;
-				if (!romInfo.IsDirectory && (Frens::cstr_endswith(romInfo.Path, ".gb") )) 
+				if (!romInfo.IsDirectory && (Frens::cstr_endswith(romInfo.Path, ".gb") || Frens::cstr_endswith(romInfo.Path, ".gbc") )) 
 				{
 					entries[numberOfEntries++] = romInfo;
 				}

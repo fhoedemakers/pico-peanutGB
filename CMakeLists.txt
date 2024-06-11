@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-set(projectname PicoGB)
+set(projectname PicoPeanutGB)
 #set(PICO_DEOPTIMIZED_DEBUG on)
 
 set(CMAKE_C_STANDARD 11)
@@ -17,10 +17,10 @@ include(pico_sdk_import.cmake)
 project(${projectname} C CXX ASM)
 pico_sdk_init()
 
-if (NOT PICOGB_HW_CONFIG)
-    set(PICOGB_HW_CONFIG 1 CACHE STRING "Select the hardware configuration for your board")       
+if (NOT PicoPeanutGB_HW_CONFIG)
+    set(PicoPeanutGB_HW_CONFIG 1 CACHE STRING "Select the hardware configuration for your board")       
 endif()
-if ( PICOGB_HW_CONFIG EQUAL 1 )
+if ( PicoPeanutGB_HW_CONFIG EQUAL 1 )
 	# This default Config is for Pimoroni Pico DV Demo Base
 	set(DVICONFIG "dviConfig_PimoroniDemoDVSock" CACHE STRING
 	  "Select a default pin configuration from common_dvi_pin_configs.h")
@@ -34,7 +34,7 @@ if ( PICOGB_HW_CONFIG EQUAL 1 )
 	set(NES_LAT "16" CACHE STRING "Select the Latch GPIO pin for NES controller")
 	set(WII_SDA "-1" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
 	set(WII_SCL "-1" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
-elseif ( PICOGB_HW_CONFIG EQUAL 2 )
+elseif ( PicoPeanutGB_HW_CONFIG EQUAL 2 )
 	# --------------------------------------------------------------------
 	# Alternate config for use with different SDcard reader and HDMI board
 	# --------------------------------------------------------------------
@@ -52,7 +52,7 @@ elseif ( PICOGB_HW_CONFIG EQUAL 2 )
 	set(NES_LAT "8" CACHE STRING "Select the Latch GPIO pin for NES controller")
 	set(WII_SDA "-1" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
 	set(WII_SCL "-1" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
-elseif ( PICOGB_HW_CONFIG EQUAL 3 )
+elseif ( PicoPeanutGB_HW_CONFIG EQUAL 3 )
 	# --------------------------------------------------------------------
 	# Alternate config for use with Adafruit Feather RP2040 DVI + SD Wing
 	# --------------------------------------------------------------------
@@ -68,7 +68,7 @@ elseif ( PICOGB_HW_CONFIG EQUAL 3 )
 	set(NES_LAT "9" CACHE STRING "Select the Latch GPIO pin for NES controller")
 	set(WII_SDA "2" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
 	set(WII_SCL "3" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
-elseif ( PICOGB_HW_CONFIG EQUAL 4 )
+elseif ( PicoPeanutGB_HW_CONFIG EQUAL 4 )
     # --------------------------------------------------------------------
 	# Alternate config for use with Waveshare RP2040-PiZero
 	# --------------------------------------------------------------------
@@ -152,7 +152,6 @@ PRIVATE
     hardware_clocks
     hardware_pwm
     hardware_flash
-    InfoGB
     fatfs
     sdcard
     tinyusb_host
@@ -166,7 +165,6 @@ PRIVATE
     InfoGB
     .
 )
-add_subdirectory(InfoGB)
 add_subdirectory(drivers/fatfs)
 add_subdirectory(drivers/sdcard)
 add_subdirectory(pico_lib/dvi)

@@ -47,6 +47,7 @@
 #include <string.h>	/* Required for memset */
 #include <time.h>	/* Required for tm struct */
 
+uint8_t *GBaddress = (uint8_t *)GB_FILE_ADDR;
 /**
 * If PEANUT_GB_IS_LITTLE_ENDIAN is positive, then Peanut-GB will be configured
 * for a little endian platform. If 0, then big endian.
@@ -744,7 +745,7 @@ struct gb_s
  * Internal function used to read bytes.
  * addr is host platform endian.
  */
-uint8_t __gb_read(struct gb_s *gb, uint16_t addr)
+uint8_t __not_in_flash_func(__gb_read)(struct gb_s *gb, uint16_t addr)
 {
 	switch(PEANUT_GB_GET_MSN16(addr))
 	{
@@ -854,7 +855,7 @@ uint8_t __gb_read(struct gb_s *gb, uint16_t addr)
 /**
  * Internal function used to write bytes.
  */
-void __gb_write(struct gb_s *gb, uint_fast16_t addr, uint8_t val)
+void __not_in_flash_func(__gb_write)(struct gb_s *gb, uint_fast16_t addr, uint8_t val)
 {
 	switch(PEANUT_GB_GET_MSN16(addr))
 	{
@@ -1194,7 +1195,7 @@ void __gb_write(struct gb_s *gb, uint_fast16_t addr, uint8_t val)
 	return;
 }
 
-uint8_t __gb_execute_cb(struct gb_s *gb)
+uint8_t __not_in_flash_func(__gb_execute_cb)(struct gb_s *gb)
 {
 	uint8_t inst_cycles;
 	uint8_t cbop = __gb_read(gb, gb->cpu_reg.pc.reg++);
@@ -1403,7 +1404,7 @@ static int compare_sprites(const void *in1, const void *in2)
 }
 #endif
 
-void __gb_draw_line(struct gb_s *gb)
+void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 {
 	uint8_t pixels[160] = {0};
 
@@ -1724,7 +1725,7 @@ void __gb_draw_line(struct gb_s *gb)
 /**
  * Internal function used to step the CPU.
  */
-void __gb_step_cpu(struct gb_s *gb)
+void __not_in_flash_func(__gb_step_cpu)(struct gb_s *gb)
 {
 	uint8_t opcode;
 	uint_fast16_t inst_cycles;
@@ -3463,7 +3464,7 @@ void __gb_step_cpu(struct gb_s *gb)
 	/* If halted, loop until an interrupt occurs. */
 }
 
-void gb_run_frame(struct gb_s *gb)
+void __not_in_flash_func(gb_run_frame)(struct gb_s *gb)
 {
 	gb->gb_frame = false;
 

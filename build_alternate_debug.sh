@@ -1,6 +1,6 @@
 :
 # ====================================================================================
-# PICOGB build script with alternate configuration and debug enabled
+# PicoPeanutGB build script with alternate configuration and debug enabled
 # Builds the emulator for use with the
 # AdaFruit DVI Breakout Board
 #         https://www.adafruit.com/product/4984
@@ -16,7 +16,7 @@ if [ -d build ] ; then
 fi
 mkdir build || exit 1
 cd build || exit 1
-cmake -DCMAKE_BUILD_TYPE:STRING=RelWithDebInfo -DPICOGB_HW_CONFIG=2 ..
+cmake -DCMAKE_BUILD_TYPE:STRING=RelWithDebInfo -DPicoPeanutGB_HW_CONFIG=2 ..
 make -j 4
 cd ..
 # . ./removetmpsdk.sh

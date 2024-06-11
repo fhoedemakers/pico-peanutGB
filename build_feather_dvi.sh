@@ -1,6 +1,6 @@
 :
 # ====================================================================================
-# PICOGB build script with alternate configuration
+# PicoPeanutGB build script with alternate configuration
 # Builds the emulator for use with the
 # Adafruit Feather RP2040 DVI
 # and the 
@@ -13,7 +13,7 @@ if [ -d build ] ; then
 fi
 mkdir build || exit 1
 cd build || exit 1
-cmake -DCMAKE_BUILD_TYPE:STRING=Release -DPICOGB_HW_CONFIG=3 ..
+cmake -DCMAKE_BUILD_TYPE:STRING=Release -DPicoPeanutGB_HW_CONFIG=3 ..
 make -j 4
 cd ..
 #. ./removetmpsdk.sh

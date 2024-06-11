@@ -1,5 +1,5 @@
 
-# PICOGB.
+# PicoPeanutGB.
 
 This software is a port of [SmsPlus](https://segaretro.org/SMS_Plus), a Sega Master System and Game Gear emulator for RP2040 based microcontroller boards like the RaspberryPi Pico. Sound and video are ouput over HDMI.
 The code for HDMI output is based on [Shuichi Takano's Pico-InfoNes project](https://github.com/shuichitakano/pico-infones) which in turn is based on [PicoDVI](https://github.com/Wren6991/PicoDVI).
@@ -14,7 +14,7 @@ Put your Master System (.sms) and Game Gear (.gg) rom files on a FAT32 formatted
 
 ## System requirements - What do yo need?
 
-The binary specific for your config can be downloaded from the [releases](https://github.com/fhoedemakers/PICOGB/releases/latest) page.
+The binary specific for your config can be downloaded from the [releases](https://github.com/fhoedemakers/PicoPeanutGB/releases/latest) page.
 
 You need a FAT32 formatted SD card to put your .sms and .gg roms on.
 
