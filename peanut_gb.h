@@ -147,7 +147,7 @@ uint8_t *GBaddress = (uint8_t *)GB_FILE_ADDR;
 
 /* DIV Register is incremented at rate of 16384Hz.
  * 4194304 / 16384 = 256 clock cycles for one increment. */
-#define DIV_CYCLES          256
+#define DIV_CYCLES        256
 
 /* Serial clock locked to 8192Hz on DMG.
  * 4194304 / (8192 / 8) = 4096 clock cycles for sending 1 byte. */
@@ -649,10 +649,10 @@ struct gb_s
 		 * \param line		Line to draw pixels on. This is
 		 * guaranteed to be between 0-144 inclusive.
 		 */
-		void (*lcd_draw_line)(struct gb_s *gb,
+		void (*lcd_draw_lineOLD)(struct gb_s *gb,
 				const uint8_t *pixels,
 				const uint_fast8_t line);
-
+		void (*lcd_draw_line)(const uint_fast8_t line);
 		/* Palettes */
 		uint8_t bg_palette[4];
 		uint8_t sp_palette[8];
@@ -1403,10 +1403,15 @@ static int compare_sprites(const void *in1, const void *in2)
 }
 #endif
 
+WORD *infoGB_getlinebuffer();
+
 void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 {
 	uint8_t pixels[160] = {0};
-
+	WORD * buff = infoGB_getlinebuffer();
+	uint16_t palette444[] = {
+        0xF7DE, 0x7BEF, 0x39E7, 0x0000,
+    };
 	/* If LCD not initialised by front-end, don't render anything. */
 	if(gb->display.lcd_draw_line == NULL)
 		return;
@@ -1506,6 +1511,8 @@ void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 #if PEANUT_GB_12_COLOUR
 			pixels[disp_x] |= LCD_PALETTE_BG;
 #endif
+			buff[disp_x] = palette444[pixels[disp_x] & 3];
+
 			t1 = t1 >> 1;
 			t2 = t2 >> 1;
 			px++;
@@ -1574,6 +1581,7 @@ void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 #if PEANUT_GB_12_COLOUR
 			pixels[disp_x] |= LCD_PALETTE_BG;
 #endif
+			buff[disp_x] =  palette444[pixels[disp_x] & 3];
 			t1 = t1 >> 1;
 			t2 = t2 >> 1;
 			px++;
@@ -1709,7 +1717,9 @@ void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 					/* Set pixel palette (OBJ0 or OBJ1). */
 					pixels[disp_x] |= (OF & OBJ_PALETTE);
 #endif
+					buff[disp_x] =  palette444[pixels[disp_x] & 3];
 				}
+				
 
 				t1 = t1 >> 1;
 				t2 = t2 >> 1;
@@ -1717,7 +1727,8 @@ void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 		}
 	}
 
-	gb->display.lcd_draw_line(gb, pixels, gb->hram_io[IO_LY]);
+	gb->display.lcd_draw_line(gb->hram_io[IO_LY]);
+	//infogb_plot_line(gb->hram_io[IO_LY]);
 }
 #endif
 
@@ -3705,10 +3716,12 @@ const char* gb_get_rom_name(struct gb_s* gb, char *title_str)
 }
 
 #if ENABLE_LCD
+// void gb_init_lcd(struct gb_s *gb,
+// 		void (*lcd_draw_line)(struct gb_s *gb,
+// 			const uint8_t *pixels,
+// 			const uint_fast8_t line))
 void gb_init_lcd(struct gb_s *gb,
-		void (*lcd_draw_line)(struct gb_s *gb,
-			const uint8_t *pixels,
-			const uint_fast8_t line))
+		void (*lcd_draw_line)(const uint_fast8_t line))
 {
 	gb->display.lcd_draw_line = lcd_draw_line;
 

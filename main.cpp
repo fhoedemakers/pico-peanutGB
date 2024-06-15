@@ -292,68 +292,6 @@ uint32_t time_us()
     return to_us_since_boot(t);
 }
 
-extern "C" void __not_in_flash_func(sms_render_line)(int line, const uint8_t *buffer)
-{
-    // DVI top margin has #MARGINTOP lines
-    // DVI bottom margin has #MARGINBOTTOM lines
-    // DVI usable screen estate: MARGINTOP .. (240 - #MARGINBOTTOM)
-    // SMS has 192 lines
-    // GG  has 144 lines
-    // gg : Line starts at line 24
-    // sms: Line starts at line 0
-    // Emulator loops from scanline 0 to 261
-    // Audio needs to be processed per scanline
-
-    processaudio(line);
-    // Adjust line number to center the emulator display
-    line += MARGINTOP;
-    // Only render lines that are visible on the screen, keeping into account top and bottom margins
-    if (line < MARGINTOP || line >= 240 - MARGINBOTTOM)
-        return;
-
-    auto b = dvi_->getLineBuffer();
-    uint16_t *sbuffer;
-    if (buffer)
-    {
-#if 0
-        uint16_t *sbuffer = b->data() + 32 + (IS_GG ? 48 : 0);
-        for (int i = screenCropX; i < BMP_WIDTH - screenCropX; i++)
-        {
-            sbuffer[i - screenCropX] = palette444[(buffer[i + BMP_X_OFFSET]) & 31];
-        }
-#endif
-    }
-    else
-    {
-        sbuffer = b->data() + 32;
-        __builtin_memset(sbuffer, 0, 512);
-    }
-    // Display frame rate
-    if (fps_enabled && line >= FPSSTART && line < FPSEND)
-    {
-        WORD *fpsBuffer = b->data() + 40;
-        int rowInChar = line % 8;
-        for (auto i = 0; i < 2; i++)
-        {
-            char firstFpsDigit = fpsString[i];
-            char fontSlice = getcharslicefrom8x8font(firstFpsDigit, rowInChar);
-            for (auto bit = 0; bit < 8; bit++)
-            {
-                if (fontSlice & 1)
-                {
-                    *fpsBuffer++ = fpsfgcolor;
-                }
-                else
-                {
-                    *fpsBuffer++ = fpsbgcolor;
-                }
-                fontSlice >>= 1;
-            }
-        }
-    }
-    dvi_->setLineBuffer(line, b);
-}
-
 void __not_in_flash_func(core1_main)()
 {
     printf("core1 started\n");
@@ -506,38 +444,51 @@ int ProcessAfterFrameIsRendered()
 
 
 
-// WORD tmpbuffer[512];
+//WORD tmpbuffer[512];
 WORD *__not_in_flash_func(infoGB_getlinebuffer)()
 {
 
     uint16_t *sbuffer;
-    // sbuffer = tmpbuffer;
-    // return sbuffer;
+  //  sbuffer = tmpbuffer;
+  //  return sbuffer;
     auto b = dvi_->getLineBuffer();
     sbuffer = b->data() + 32;
     currentLineBuffer_ = b;
     return sbuffer;
 }
 
-void __not_in_flash_func(infogb_plot_line)(int line, int *buffer)
+void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
 {
 
     line += MARGINTOP;
+
+     // Display frame rate
+    if (fps_enabled && line >= FPSSTART && line < FPSEND)
+    {
+        WORD *fpsBuffer = currentLineBuffer_->data() + 40;
+        int rowInChar = line % 8;
+        for (auto i = 0; i < 2; i++)
+        {
+            char firstFpsDigit = fpsString[i];
+            char fontSlice = getcharslicefrom8x8font(firstFpsDigit, rowInChar);
+            for (auto bit = 0; bit < 8; bit++)
+            {
+                if (fontSlice & 1)
+                {
+                    *fpsBuffer++ = fpsfgcolor;
+                }
+                else
+                {
+                    *fpsBuffer++ = fpsbgcolor;
+                }
+                fontSlice >>= 1;
+            }
+        }
+    }
     dvi_->setLineBuffer(line, currentLineBuffer_);
 }
 
-void __not_in_flash_func(process)(void)
-{
-#if 0
-    DWORD pdwPad1, pdwPad2, pdwSystem; // have only meaning in menu
-    while (reset == false)
-    {
-        processinput(&pdwPad1, &pdwPad2, &pdwSystem, false);
-        sms_frame(0);
-        ProcessAfterFrameIsRendered();
-    }
-#endif
-}
+
 
 struct priv_t
 {
@@ -643,9 +594,11 @@ void gb_error(struct gb_s *gb, const enum gb_error_e gb_err, const uint16_t val)
 void __not_in_flash_func(lcd_draw_line)(struct gb_s *gb, const uint8_t pixels[160],
                    const uint_fast8_t line)
 {
-    const uint16_t palette444[] = {
+#if 0
+    uint16_t palette444[] = {
         0xF7DE, 0x7BEF, 0x39E7, 0x0000,
     };
+#endif
 #if 0
 	struct priv_t *priv = gb->direct.priv;
 	const uint32_t palette[] = { 0xFFFFFF, 0xA5A5A5, 0x525252, 0x000000 };
@@ -653,19 +606,36 @@ void __not_in_flash_func(lcd_draw_line)(struct gb_s *gb, const uint8_t pixels[16
 	for(unsigned int x = 0; x < LCD_WIDTH; x++)
 		priv->fb[line][x] = palette[pixels[x] & 3];
 #endif
+#if 0
     auto b = dvi_->getLineBuffer();
     uint16_t *sbuffer = b->data() + 32;
     for(unsigned int x = 0; x < LCD_WIDTH; x++) {
         sbuffer[x] = palette444[pixels[x] & 3];
     }
-    //printf("%d\n", line);
+    printf("%d\n", line);
     dvi_->setLineBuffer(line + MARGINTOP, b);
+#endif
+    dvi_->setLineBuffer(line+ MARGINTOP, currentLineBuffer_);
 }
 #endif
 
 bool load_rom(char *, unsigned char *)
 {
     return true;
+}
+void __not_in_flash_func(process)(struct gb_s *gb)
+{
+  
+    DWORD pdwPad1, pdwPad2, pdwSystem; // have only meaning in menu
+
+    gb_init_lcd(gb, &infogb_plot_line);
+    gb->direct.interlace = false;
+    while (reset == false)
+    {
+        processinput(&pdwPad1, &pdwPad2, &pdwSystem, false);
+         gb_run_frame(gb);
+        ProcessAfterFrameIsRendered();
+    }
 }
 /// @brief
 /// Start emulator. Emulator does not run well in DEBUG mode, lots of red screen flicker. In order to keep it running fast enough, we need to run it in release mode or in
@@ -687,9 +657,9 @@ int main()
 
     ErrorMessage = errMSG;
 
-    static struct gb_s gb;
     static struct priv_t priv;
     enum gb_init_error_e ret;
+      static struct gb_s gb;
     // Set voltage and clock frequency
     vreg_set_voltage(VREG_VOLTAGE_1_20);
     sleep_ms(10);
@@ -925,14 +895,7 @@ int main()
             continue;
         }
 
-#if ENABLE_LCD
-        gb_init_lcd(&gb, &lcd_draw_line);
-        gb.direct.interlace = false;
-        //gb.direct.frame_skip = 8;
-#endif
-        while(true) {
-            gb_run_frame(&gb);
-        }
+        process(&gb);
         selectedRom[0] = 0;
     }
     return 0;
