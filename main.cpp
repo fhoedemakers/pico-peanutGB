@@ -70,6 +70,11 @@ static char fpsString[3] = "00";
 #define FPSEND ((FPSSTART) + 8)
 
 bool reset = false;
+bool showlines = false;
+
+#ifndef NORENDER
+#define NORENDER 0   // 0 is render frames in emulation loop
+#endif
 
 namespace
 {
@@ -395,7 +400,7 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
             {
                 // fps_enabled = !fps_enabled;
                 // printf("FPS: %s\n", fps_enabled ? "ON" : "OFF");
-                printf("FPS: %d\n", fps);
+                printf("FPS: %d- %d\n", fps,dvi_->getFrameCounter());
             }
             if (pushed & UP)
             {
@@ -416,6 +421,16 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
 }
 int ProcessAfterFrameIsRendered()
 {
+#if !NORENDER
+    // add additonal lines
+    for ( int i = 144+MARGINTOP ; i < 240 - MARGINBOTTOM; i++)
+    {
+        auto b = dvi_->getLineBuffer();
+        WORD *buffer = b->data();
+        __builtin_memset(buffer,0, 512);
+        dvi_->setLineBuffer(i, b);
+    }
+#endif
 #if NES_PIN_CLK != -1
     nespad_read_start();
 #endif
@@ -439,29 +454,31 @@ int ProcessAfterFrameIsRendered()
         fpsString[0] = '0' + (fps / 10);
         fpsString[1] = '0' + (fps % 10);
     }
+    
     return count;
 }
 
 
 
-//WORD tmpbuffer[512];
+
 WORD *__not_in_flash_func(infoGB_getlinebuffer)()
 {
-
     uint16_t *sbuffer;
-  //  sbuffer = tmpbuffer;
-  //  return sbuffer;
+#if NORENDER
+    static WORD tmpbuffer[512];
+    sbuffer = tmpbuffer;
+#else
     auto b = dvi_->getLineBuffer();
     sbuffer = b->data() + 32;
     currentLineBuffer_ = b;
+#endif
     return sbuffer;
 }
 
 void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
 {
-
+#if !NORENDER
     line += MARGINTOP;
-
      // Display frame rate
     if (fps_enabled && line >= FPSSTART && line < FPSEND)
     {
@@ -486,6 +503,7 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
         }
     }
     dvi_->setLineBuffer(line, currentLineBuffer_);
+#endif
 }
 
 
@@ -587,37 +605,20 @@ void gb_error(struct gb_s *gb, const enum gb_error_e gb_err, const uint16_t val)
     exit(EXIT_FAILURE);
 }
 
-#if ENABLE_LCD
+
 /**
  * Draws scanline into framebuffer.
+ * GameBoy resolution is 160x144.
+ * 
  */
 void __not_in_flash_func(lcd_draw_line)(struct gb_s *gb, const uint8_t pixels[160],
                    const uint_fast8_t line)
 {
-#if 0
-    uint16_t palette444[] = {
-        0xF7DE, 0x7BEF, 0x39E7, 0x0000,
-    };
-#endif
-#if 0
-	struct priv_t *priv = gb->direct.priv;
-	const uint32_t palette[] = { 0xFFFFFF, 0xA5A5A5, 0x525252, 0x000000 };
-
-	for(unsigned int x = 0; x < LCD_WIDTH; x++)
-		priv->fb[line][x] = palette[pixels[x] & 3];
-#endif
-#if 0
-    auto b = dvi_->getLineBuffer();
-    uint16_t *sbuffer = b->data() + 32;
-    for(unsigned int x = 0; x < LCD_WIDTH; x++) {
-        sbuffer[x] = palette444[pixels[x] & 3];
-    }
-    printf("%d\n", line);
-    dvi_->setLineBuffer(line + MARGINTOP, b);
-#endif
+#if !NORENDER
     dvi_->setLineBuffer(line+ MARGINTOP, currentLineBuffer_);
-}
 #endif
+}
+
 
 bool load_rom(char *, unsigned char *)
 {
@@ -630,10 +631,11 @@ void __not_in_flash_func(process)(struct gb_s *gb)
 
     gb_init_lcd(gb, &infogb_plot_line);
     gb->direct.interlace = false;
+    gb->direct.frame_skip = false;
     while (reset == false)
     {
         processinput(&pdwPad1, &pdwPad2, &pdwSystem, false);
-         gb_run_frame(gb);
+        gb_run_frame(gb);
         ProcessAfterFrameIsRendered();
     }
 }
@@ -659,7 +661,9 @@ int main()
 
     static struct priv_t priv;
     enum gb_init_error_e ret;
-      static struct gb_s gb;
+    static struct gb_s gb;
+
+ 
     // Set voltage and clock frequency
     vreg_set_voltage(VREG_VOLTAGE_1_20);
     sleep_ms(10);
