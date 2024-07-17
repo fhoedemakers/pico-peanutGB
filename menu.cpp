@@ -210,7 +210,7 @@ void DisplayFatalError(char *error)
     putText(1, 3, error, fgcolor, bgcolor);
     while (true)
     {
-        auto frameCount = ProcessAfterFrameIsRendered();
+        auto frameCount = ProcessAfterFrameIsRendered(true);
         DrawScreen(-1);
     }
 }
@@ -224,7 +224,7 @@ void DisplayEmulatorErrorMessage(char *error)
     putText(0, ENDROW, "Press a button to continue.", fgcolor, bgcolor);
     while (true)
     {
-        auto frameCount = ProcessAfterFrameIsRendered();
+        auto frameCount = ProcessAfterFrameIsRendered(true);
         DrawScreen(-1);
         processinput(&PAD1_Latch, &PAD1_Latch2, &pdwSystem, false);
         if (PAD1_Latch > 0)
@@ -285,7 +285,7 @@ void showSplashScreen()
     int startFrame = -1;
     while (true)
     {
-        auto frameCount = ProcessAfterFrameIsRendered();
+        auto frameCount = ProcessAfterFrameIsRendered(true);
         if (startFrame == -1)
         {
             startFrame = frameCount;
@@ -322,7 +322,7 @@ void screenSaver()
     WORD frameCount;
     while (true)
     {
-        frameCount = ProcessAfterFrameIsRendered();
+        frameCount = ProcessAfterFrameIsRendered(true);
         DrawScreen(-1);
         processinput(&PAD1_Latch, &PAD1_Latch2, &pdwSystem, false);
 
@@ -344,7 +344,7 @@ void clearinput()
     DWORD PAD1_Latch, PAD1_Latch2, pdwSystem;
     while (1)
     {
-        ProcessAfterFrameIsRendered();
+        ProcessAfterFrameIsRendered(true);
         DrawScreen(-1);
         processinput(&PAD1_Latch, &PAD1_Latch2, &pdwSystem, true);
         if (PAD1_Latch == 0)
@@ -416,7 +416,7 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
     while (1)
     {
 
-        auto frameCount = ProcessAfterFrameIsRendered();
+        auto frameCount = ProcessAfterFrameIsRendered(true);
         auto index = selectedRow - STARTROW + firstVisibleRowINDEX;
         auto entries = romlister.GetEntries();
         selectedRomOrFolder = (romlister.Count() > 0) ? entries[index].Path : nullptr;

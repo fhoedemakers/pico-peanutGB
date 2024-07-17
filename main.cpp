@@ -33,7 +33,7 @@
 #include "wiipad.h"
 #include "FrensHelpers.h"
 #include "peanut_gb.h"
-
+#include "gb.h"
 #ifdef __cplusplus
 
 #include "ff.h"
@@ -70,10 +70,10 @@ static char fpsString[3] = "00";
 #define FPSEND ((FPSSTART) + 8)
 
 bool reset = false;
-bool showlines = false;
+bool frametimeenabled = false;
 
 #ifndef NORENDER
-#define NORENDER 0   // 0 is render frames in emulation loop
+#define NORENDER 0 // 0 is render frames in emulation loop
 #endif
 
 namespace
@@ -400,7 +400,8 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
             {
                 // fps_enabled = !fps_enabled;
                 // printf("FPS: %s\n", fps_enabled ? "ON" : "OFF");
-                printf("FPS: %d- %d\n", fps,dvi_->getFrameCounter());
+                printf("FPS: %d- %d\n", fps, dvi_->getFrameCounter());
+                frametimeenabled = !frametimeenabled;
             }
             if (pushed & UP)
             {
@@ -419,16 +420,19 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
         }
     }
 }
-int ProcessAfterFrameIsRendered()
+int ProcessAfterFrameIsRendered(bool frommenu)
 {
 #if !NORENDER
-    // add additonal lines
-    for ( int i = 144+MARGINTOP ; i < 240 - MARGINBOTTOM; i++)
+    if (!frommenu)
     {
-        auto b = dvi_->getLineBuffer();
-        WORD *buffer = b->data();
-        __builtin_memset(buffer,0, 512);
-        dvi_->setLineBuffer(i, b);
+        // add additonal lines
+        for (int i = 144 + MARGINTOP; i < 240 - MARGINBOTTOM; i++)
+        {
+            auto b = dvi_->getLineBuffer();
+            WORD *buffer = b->data();
+            __builtin_memset(buffer, 0, 512);
+            dvi_->setLineBuffer(i, b);
+        }
     }
 #endif
 #if NES_PIN_CLK != -1
@@ -454,12 +458,9 @@ int ProcessAfterFrameIsRendered()
         fpsString[0] = '0' + (fps / 10);
         fpsString[1] = '0' + (fps % 10);
     }
-    
+
     return count;
 }
-
-
-
 
 WORD *__not_in_flash_func(infoGB_getlinebuffer)()
 {
@@ -475,11 +476,16 @@ WORD *__not_in_flash_func(infoGB_getlinebuffer)()
     return sbuffer;
 }
 
+/**
+ * Draws scanline into framebuffer.
+ * GameBoy resolution is 160x144.
+ *
+ */
 void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
 {
 #if !NORENDER
     line += MARGINTOP;
-     // Display frame rate
+    // Display frame rate
     if (fps_enabled && line >= FPSSTART && line < FPSEND)
     {
         WORD *fpsBuffer = currentLineBuffer_->data() + 40;
@@ -507,7 +513,7 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
 }
 
 
-
+#if 0
 struct priv_t
 {
     /* Pointer to allocated memory holding GB file. */
@@ -544,7 +550,7 @@ uint8_t __not_in_flash_func(gb_cart_ram_read)(struct gb_s *gb, const uint_fast32
  */
 
 void __not_in_flash_func(gb_cart_ram_write)(struct gb_s *gb, const uint_fast32_t addr,
-                       const uint8_t val)
+                                            const uint8_t val)
 {
     // const struct priv_t * const p = gb->direct.priv;
     const struct priv_t *const p = static_cast<const struct priv_t *>(gb->direct.priv);
@@ -604,21 +610,7 @@ void gb_error(struct gb_s *gb, const enum gb_error_e gb_err, const uint16_t val)
     free(priv->rom);
     exit(EXIT_FAILURE);
 }
-
-
-/**
- * Draws scanline into framebuffer.
- * GameBoy resolution is 160x144.
- * 
- */
-void __not_in_flash_func(lcd_draw_line)(struct gb_s *gb, const uint8_t pixels[160],
-                   const uint_fast8_t line)
-{
-#if !NORENDER
-    dvi_->setLineBuffer(line+ MARGINTOP, currentLineBuffer_);
 #endif
-}
-
 
 bool load_rom(char *, unsigned char *)
 {
@@ -626,23 +618,52 @@ bool load_rom(char *, unsigned char *)
 }
 void __not_in_flash_func(process)(struct gb_s *gb)
 {
-  
-    DWORD pdwPad1, pdwPad2, pdwSystem; // have only meaning in menu
 
+    DWORD pdwPad1, pdwPad2, pdwSystem; // have only meaning in menu
+    int fcount = 0;
     gb_init_lcd(gb, &infogb_plot_line);
     gb->direct.interlace = false;
     gb->direct.frame_skip = false;
+    uint32_t ti1, ti2;
+    int minframes = 0, maxframes = 0;
+    int frametime = 0;
+    bool print = false;
     while (reset == false)
     {
         processinput(&pdwPad1, &pdwPad2, &pdwSystem, false);
+        ti1 = time_us();
         gb_run_frame(gb);
-        ProcessAfterFrameIsRendered();
+        ti2 = time_us();
+        frametime = (ti2 - ti1) / 1000;
+        print = false;
+        if ( minframes == 0 || frametime < minframes)
+        {
+            minframes = frametime;
+            print = true;
+        }
+        if (frametime > maxframes)
+        {
+            maxframes = frametime;
+            print = true;
+        }  
+        // if ( print ) { 
+        //     printf("Min frame time:%d Max frame time  %d ms\n", minframes, maxframes);
+        // }
+        printf("Frame time: %d ms\n", frametime);
+        // if ( frametime > 10) {
+        //     printf("Break\n");
+        // }
+        fcount++;
+        ProcessAfterFrameIsRendered(false);
     }
 }
+
 /// @brief
 /// Start emulator. Emulator does not run well in DEBUG mode, lots of red screen flicker. In order to keep it running fast enough, we need to run it in release mode or in
 /// RelWithDebugInfo mode.
 /// @return
+
+// MARK: main
 int main()
 {
     char selectedRom[FF_MAX_LFN];
@@ -663,7 +684,6 @@ int main()
     enum gb_init_error_e ret;
     static struct gb_s gb;
 
- 
     // Set voltage and clock frequency
     vreg_set_voltage(VREG_VOLTAGE_1_20);
     sleep_ms(10);

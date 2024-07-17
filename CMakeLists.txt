@@ -108,6 +108,7 @@ add_executable(${projectname}
     menu.cpp 
     RomLister.cpp
     FrensHelpers.cpp
+    gb.c
 )
 
 pico_set_program_name(${projectname} "${projectname}")

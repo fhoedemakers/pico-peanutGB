@@ -649,9 +649,9 @@ struct gb_s
 		 * \param line		Line to draw pixels on. This is
 		 * guaranteed to be between 0-144 inclusive.
 		 */
-		void (*lcd_draw_lineOLD)(struct gb_s *gb,
-				const uint8_t *pixels,
-				const uint_fast8_t line);
+		// void (*lcd_draw_lineOLD)(struct gb_s *gb,
+		// 		const uint8_t *pixels,
+		// 		const uint_fast8_t line);
 		void (*lcd_draw_line)(const uint_fast8_t line);
 		/* Palettes */
 		uint8_t bg_palette[4];
@@ -3828,10 +3828,11 @@ void gb_reset(struct gb_s *gb);
  *		"line". Must not be NULL.
  */
 #if ENABLE_LCD
-void gb_init_lcd(struct gb_s *gb,
-		void (*lcd_draw_line)(struct gb_s *gb,
-			const uint8_t *pixels,
-			const uint_fast8_t line));
+// void gb_init_lcd(struct gb_s *gb,
+// 		void (*lcd_draw_line)(struct gb_s *gb,
+// 			const uint8_t *pixels,
+// 			const uint_fast8_t line));
+void gb_init_lcd(struct gb_s *gb, void (*lcd_draw_line)(const uint_fast8_t line));
 #endif
 
 /**
