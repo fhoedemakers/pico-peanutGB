@@ -332,7 +332,7 @@ static DWORD prevOtherButtons[2]{};
 
 static int rapidFireMask[2]{};
 static int rapidFireCounter = 0;
-void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed)
+void processinput(void *gb, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed)
 {
     // pwdPad1 and pwdPad2 are only used in menu and are only set on first push
     *pdwPad1 = *pdwPad2 = *pdwSystem = 0;
@@ -342,7 +342,7 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
         int nespadbuttons = 0;
         auto &dst = (i == 0) ? *pdwPad1 : *pdwPad2;
         auto &gp = io::getCurrentGamePadState(i);
-        int gbbuttons = (gp.buttons & io::GamePadState::Button::LEFT ? LEFT : 0) |
+        int menubuttons = (gp.buttons & io::GamePadState::Button::LEFT ? LEFT : 0) |
                         (gp.buttons & io::GamePadState::Button::RIGHT ? RIGHT : 0) |
                         (gp.buttons & io::GamePadState::Button::UP ? UP : 0) |
                         (gp.buttons & io::GamePadState::Button::DOWN ? DOWN : 0) |
@@ -351,6 +351,14 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
                         (gp.buttons & io::GamePadState::Button::SELECT ? SELECT : 0) |
                         (gp.buttons & io::GamePadState::Button::START ? START : 0) | 0;
 
+        int gamepadbuttons = (gp.buttons & io::GamePadState::Button::LEFT ? JOYPAD_LEFT : 0) |
+                        (gp.buttons & io::GamePadState::Button::RIGHT ? JOYPAD_RIGHT : 0) |
+                        (gp.buttons & io::GamePadState::Button::UP ? JOYPAD_UP : 0) |
+                        (gp.buttons & io::GamePadState::Button::DOWN ? JOYPAD_DOWN : 0) |
+                        (gp.buttons & io::GamePadState::Button::A ? JOYPAD_A : 0) |
+                        (gp.buttons & io::GamePadState::Button::B ? JOYPAD_B : 0) |
+                        (gp.buttons & io::GamePadState::Button::SELECT ? JOYPAD_SELECT : 0) |
+                        (gp.buttons & io::GamePadState::Button::START ? JOYPAD_START : 0) | 0;
         if (i == 0)
         {
 #if NES_PIN_CLK != -1
@@ -362,7 +370,8 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
 #endif
             if (nespadbuttons > 0)
             {
-                gbbuttons |= ((nespadbuttons & NESPAD_UP ? UP : 0) |
+               
+                menubuttons |= ((nespadbuttons & NESPAD_UP ? UP : 0) |
                               (nespadbuttons & NESPAD_DOWN ? DOWN : 0) |
                               (nespadbuttons & NESPAD_LEFT ? LEFT : 0) |
                               (nespadbuttons & NESPAD_RIGHT ? RIGHT : 0) |
@@ -370,19 +379,28 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
                               (nespadbuttons & NESPAD_B ? B : 0) |
                               (nespadbuttons & NESPAD_SELECT ? SELECT : 0) |
                               (nespadbuttons & NESPAD_START ? START : 0) | 0);
+
+                gamepadbuttons |= ((nespadbuttons & NESPAD_UP ? JOYPAD_UP : 0) |
+                              (nespadbuttons & NESPAD_DOWN ? JOYPAD_DOWN : 0) |
+                              (nespadbuttons & NESPAD_LEFT ? JOYPAD_LEFT : 0) |
+                              (nespadbuttons & NESPAD_RIGHT ? JOYPAD_RIGHT : 0) |
+                              (nespadbuttons & NESPAD_A ? JOYPAD_A : 0) |
+                              (nespadbuttons & NESPAD_B ? JOYPAD_B : 0) |
+                              (nespadbuttons & NESPAD_SELECT ? JOYPAD_SELECT : 0) |
+                              (nespadbuttons & NESPAD_START ? JOYPAD_START : 0) | 0);
             }
         }
         // if (gp.buttons & io::GamePadState::Button::SELECT) printf("SELECT\n");
         // if (gp.buttons & io::GamePadState::Button::START) printf("START\n");
         // input.pad[i] = smsbuttons;
-        auto p1 = gbbuttons;
+        auto p1 = menubuttons;
         if (ignorepushed == false)
         {
-            pushed = gbbuttons & ~prevButtons[i];
+            pushed = menubuttons & ~prevButtons[i];
         }
         else
         {
-            pushed = gbbuttons;
+            pushed = menubuttons;
         }
         if (p1 & SELECT)
         {
@@ -411,12 +429,17 @@ void processinput(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorep
                 screenMode(+1);
             }
         }
-        prevButtons[i] = gbbuttons;
+        prevButtons[i] = menubuttons;
         // return only on first push
         if (pushed)
         {
-            dst = gbbuttons;
+            dst = menubuttons;
         }
+        // if ( i== 0 && gb != nullptr )
+        // {
+        //     ((struct gb_s *)gb)->direct.joypad = gamepadbuttons;
+        // }
+       
     }
 }
 int ProcessAfterFrameIsRendered(bool frommenu)
@@ -552,7 +575,7 @@ void __not_in_flash_func(process)(struct gb_s *gb)
     bool print = false;
     while (reset == false)
     {
-        processinput(&pdwPad1, &pdwPad2, &pdwSystem, false);
+        processinput(gb, &pdwPad1, &pdwPad2, &pdwSystem, false);
         ti1 = time_us();
         gb_run_frame(gb);
         ti2 = time_us();

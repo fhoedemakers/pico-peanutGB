@@ -222,15 +222,7 @@ extern uint8_t *GBaddress; // = (uint8_t *)GB_FILE_ADDR;
 #define OBJ_FLIP_X          0x20
 #define OBJ_PALETTE         0x10
 
-/* Joypad buttons */
-#define JOYPAD_A            0x01
-#define JOYPAD_B            0x02
-#define JOYPAD_SELECT       0x04
-#define JOYPAD_START        0x08
-#define JOYPAD_RIGHT        0x10
-#define JOYPAD_LEFT         0x20
-#define JOYPAD_UP           0x40
-#define JOYPAD_DOWN         0x80
+
 
 #define ROM_HEADER_CHECKSUM_LOC	0x014D
 
