@@ -17,10 +17,10 @@ include(pico_sdk_import.cmake)
 project(${projectname} C CXX ASM)
 pico_sdk_init()
 
-if (NOT PicoPeanutGB_HW_CONFIG)
-    set(PicoPeanutGB_HW_CONFIG 1 CACHE STRING "Select the hardware configuration for your board")       
+if (NOT HW_CONFIG)
+    set(HW_CONFIG 1 CACHE STRING "Select the hardware configuration for your board")       
 endif()
-if ( PicoPeanutGB_HW_CONFIG EQUAL 1 )
+if ( HW_CONFIG EQUAL 1 )
 	# This default Config is for Pimoroni Pico DV Demo Base
 	set(DVICONFIG "dviConfig_PimoroniDemoDVSock" CACHE STRING
 	  "Select a default pin configuration from common_dvi_pin_configs.h")
@@ -34,7 +34,7 @@ if ( PicoPeanutGB_HW_CONFIG EQUAL 1 )
 	set(NES_LAT "16" CACHE STRING "Select the Latch GPIO pin for NES controller")
 	set(WII_SDA "-1" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
 	set(WII_SCL "-1" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
-elseif ( PicoPeanutGB_HW_CONFIG EQUAL 2 )
+elseif ( HW_CONFIG EQUAL 2 )
 	# --------------------------------------------------------------------
 	# Alternate config for use with different SDcard reader and HDMI board
 	# --------------------------------------------------------------------
@@ -52,7 +52,7 @@ elseif ( PicoPeanutGB_HW_CONFIG EQUAL 2 )
 	set(NES_LAT "8" CACHE STRING "Select the Latch GPIO pin for NES controller")
 	set(WII_SDA "-1" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
 	set(WII_SCL "-1" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
-elseif ( PicoPeanutGB_HW_CONFIG EQUAL 3 )
+elseif ( HW_CONFIG EQUAL 3 )
 	# --------------------------------------------------------------------
 	# Alternate config for use with Adafruit Feather RP2040 DVI + SD Wing
 	# --------------------------------------------------------------------
@@ -68,7 +68,7 @@ elseif ( PicoPeanutGB_HW_CONFIG EQUAL 3 )
 	set(NES_LAT "9" CACHE STRING "Select the Latch GPIO pin for NES controller")
 	set(WII_SDA "2" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
 	set(WII_SCL "3" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
-elseif ( PicoPeanutGB_HW_CONFIG EQUAL 4 )
+elseif ( HW_CONFIG EQUAL 4 )
     # --------------------------------------------------------------------
 	# Alternate config for use with Waveshare RP2040-PiZero
 	# --------------------------------------------------------------------
@@ -122,7 +122,11 @@ set(FAMILY rp2040)
 set(BOARD pico_sdk)
 set(TINYUSB_DEBUG_LEVE 0)
 include(${PICO_TINYUSB_PATH}/hw/bsp/${FAMILY}/family.cmake)
-family_configure_target(${projectname})
+if (PICO_SDK_VERSION_MAJOR LESS 2)
+    family_configure_target(${projectname})                                                                             
+else()
+    family_configure_target(${projectname} "" )
+endif()
 # add_compile_definitions(CFG_TUSB_DEBUG=0)
 set(GB_FLAGS -DGB_FILE_ADDR=0x10080000 -DNDEBUG)
 target_compile_definitions(${projectname} PUBLIC 

@@ -7,29 +7,35 @@
 #   - piconesPlusAdaFruitDVISD.uf2  AdaFruit HDMI and SD Breakout boards
 #   - piconesPlusFeatherDVI.uf2     Adafruit Feather RP2040 DVI + SD Wing
 # ====================================================================================
-#export RETAINSDK=1
 cd `dirname $0` || exit 1
-[ -d releases ] || mkdir releases || exit 1
-#. ./checksdk.sh
-./build.sh
-if [ -f build/PicoPeanutGB.uf2 ] ; then
-	cp build/PicoPeanutGB.uf2 releases/PicoPeanutGBPimoroniDV.uf2 || exit 1
+[ -d releases ] && rm -rf releases
+mkdir releases || exit 1
+# check picotool exists in path
+if ! command -v picotool &> /dev/null
+then
+	echo "picotool could not be found"
+	echo "Please install picotool from https://github.com/raspberrypi/picotool.git" 
+	exit
 fi
-cd `dirname $0` || exit 1
-./build_alternate.sh
-if [ -f build/PicoPeanutGB.uf2 ] ; then
-	cp build/PicoPeanutGB.uf2 releases/PicoPeanutGBAdaFruitDVISD.uf2 || exit 1
+# build for Pico
+HWCONFIGS="1 2 3 4"
+for HWCONFIG in $HWCONFIGS
+do	
+	./bld.sh -c $HWCONFIG
+done
+# build for Pico 2
+HWCONFIGS="1 2"
+for HWCONFIG in $HWCONFIGS
+do
+	./bld.sh -c $HWCONFIG -2
+done
+if [ -z "$(ls -A releases)" ]; then
+	echo "No UF2 files found in releases folder"
+	exit
 fi
-cd `dirname $0` || exit 1
-./build_feather_dvi.sh
-if [ -f build/PicoPeanutGB.uf2 ] ; then
-	cp build/PicoPeanutGB.uf2 releases/PicoPeanutGBFeatherDVI.uf2 || exit 1
-fi
-cd `dirname $0` || exit 1
-./build_ws_rp2040_pizero.sh
-if [ -f build/PicoPeanutGB.uf2 ] ; then
-	cp build/PicoPeanutGB.uf2 releases/PicoPeanutGBWsRP2040PiZero.uf2 || exit 1
-fi
-ls -l releases
-#unset RETAINSDK
-#. ./removetmpsdk.sh
+for UF2 in releases/*.uf2
+do
+	ls -l $UF2
+	picotool info $UF2
+	echo " "
+done
