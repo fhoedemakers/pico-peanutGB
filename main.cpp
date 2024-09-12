@@ -435,10 +435,15 @@ void processinput(void *gb, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bo
         {
             dst = menubuttons;
         }
-        // if ( i== 0 && gb != nullptr )
-        // {
-        //     ((struct gb_s *)gb)->direct.joypad = gamepadbuttons;
-        // }
+        if ( i== 0 && gb != nullptr )
+        {
+            //((struct gb_s *)gb)->direct.joypad = gamepadbuttons;
+            if (gamepadbuttons != 0)
+            {
+                printf("Gamepad buttons: %x\n", gamepadbuttons);
+            }
+           
+        }
        
     }
 }
