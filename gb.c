@@ -16,11 +16,12 @@ static struct priv_t priv;
 enum gb_init_error_e ret;
 static struct gb_s gb;
 
-
 /**
  * Returns a byte from the ROM file at the given address.
  */
+
 uint8_t *address = (uint8_t *)GB_FILE_ADDR;
+uint8_t *GBaddress = (uint8_t *)GB_FILE_ADDR;
 uint8_t __not_in_flash_func(gb_rom_read)(struct gb_s *gb, const uint_fast32_t addr)
 {
     // const struct priv_t * const p = gb->direct.priv;
@@ -94,7 +95,7 @@ void gb_error(struct gb_s *gb, const enum gb_error_e gb_err, const uint16_t val)
         "INVALID WRITE",
         "HALT FOREVER"};
     // struct priv_t *priv = gb->direct.priv;
-    const struct priv_t *const priv =  (const struct priv_t *)(gb->direct.priv);
+    const struct priv_t *const priv = (const struct priv_t *)(gb->direct.priv);
     printf("Error %d occurred: %s at %04X\n. Exiting.\n",
            gb_err, gb_err_str[gb_err], val);
 
@@ -103,35 +104,35 @@ void gb_error(struct gb_s *gb, const enum gb_error_e gb_err, const uint16_t val)
     free(priv->rom);
     exit(EXIT_FAILURE);
 }
-int startemulation(uint8_t *rom, char *errormessage) {
-       static char ErrorMessage[40];
-       ErrorMessage[0] = 0;
-       errormessage = ErrorMessage;
-       priv.rom = rom;
-       int isFatalError = 1;
-       priv.rom =rom;
-        ret = gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
-                      &gb_cart_ram_write, &gb_error, &priv);
+void *startemulation(uint8_t *rom, char *errormessage)
+{
+    static char ErrorMessage[40];
+    ErrorMessage[0] = 0;
+    errormessage = ErrorMessage;
+    priv.rom = rom;
+  
+    priv.rom = rom;
+    ret = gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
+                  &gb_cart_ram_write, &gb_error, &priv);
+    
+    if (ret != GB_INIT_NO_ERROR)
+    {
+        snprintf(ErrorMessage, 40, "Cannot init emulator %d", ret);
+        printf("%s\n", ErrorMessage);
+        return 0;
+    }
+    uint32_t save_size = gb_get_save_size(&gb);
+    printf("Allocating %d bytes for cart ram.\n", save_size);
+    if (save_size > 0 && save_size <= 0x2000)
+    {
+        priv.cart_ram = (uint8_t *)malloc(save_size);
+    }
+    if (save_size > 0x2000)
+    {
+        strcpy(ErrorMessage, "Save size too large, max 8KB");
+        printf("%s\n", ErrorMessage);
+        return 0;
+    }
 
-        if (ret != GB_INIT_NO_ERROR)
-        {
-            snprintf(ErrorMessage, 40, "Cannot init emulator %d", ret);
-            printf("%s\n", ErrorMessage);
-            return 0;
-        }
-        uint32_t save_size = gb_get_save_size(&gb);
-        printf("Allocating %d bytes for cart ram.\n", save_size);
-        if (save_size > 0 && save_size <= 0x2000)
-        {
-            priv.cart_ram = (uint8_t *)malloc(save_size);
-        }
-        if (save_size > 0x2000)
-        {
-            strcpy(ErrorMessage, "Save size too large, max 8KB");
-            printf("%s\n", ErrorMessage);
-            return 0;
-        }
-
-        return isFatalError;
-
+    return &gb;
 }

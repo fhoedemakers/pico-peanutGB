@@ -47,7 +47,8 @@
 #include <string.h>	/* Required for memset */
 #include <time.h>	/* Required for tm struct */
 
-uint8_t *GBaddress = (uint8_t *)GB_FILE_ADDR;
+extern uint8_t *GBaddress; // = (uint8_t *)GB_FILE_ADDR;
+
 /**
 * If PEANUT_GB_IS_LITTLE_ENDIAN is positive, then Peanut-GB will be configured
 * for a little endian platform. If 0, then big endian.

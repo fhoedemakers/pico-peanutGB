@@ -21,5 +21,11 @@ typedef unsigned char  BYTE;
 #ifndef NULL
 #define NULL  0
 #endif /* !NULL */
-int startemulation(uint8_t *rom, char *errormessage);
+#ifdef __cplusplus
+extern "C" {
+#endif
+void *startemulation(uint8_t *rom, char *errormessage);
+#ifdef __cplusplus
+}
+#endif
 #endif
