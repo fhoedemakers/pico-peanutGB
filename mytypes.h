@@ -24,14 +24,24 @@ typedef unsigned char  BYTE;
 #define NULL  0
 #endif /* !NULL */
 
-static constexpr int LEFT = 0x02;
-static constexpr int RIGHT = 0x01;
-static constexpr int UP = 0x04;
-static constexpr int DOWN = 0x08;
-static constexpr int SELECT = 0x40;
-static constexpr int START = 0x80;
-static constexpr int A = 0x10;
-static constexpr int B = 0x20;
+/* Joypad buttons */
+#define JOYPAD_A            0x01
+#define JOYPAD_B            0x02
+#define JOYPAD_SELECT       0x04
+#define JOYPAD_START        0x08
+#define JOYPAD_RIGHT        0x10
+#define JOYPAD_LEFT         0x20
+#define JOYPAD_UP           0x40
+#define JOYPAD_DOWN         0x80
+
+static constexpr int LEFT = JOYPAD_LEFT;
+static constexpr int RIGHT = JOYPAD_RIGHT;
+static constexpr int UP = JOYPAD_UP;
+static constexpr int DOWN = JOYPAD_DOWN;
+static constexpr int SELECT = JOYPAD_SELECT;
+static constexpr int START = JOYPAD_START;
+static constexpr int A = JOYPAD_A;
+static constexpr int B = JOYPAD_B;
 
 #define NESPAD_SELECT (0x04)
 #define NESPAD_START (0x08)

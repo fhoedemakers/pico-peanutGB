@@ -22,16 +22,6 @@ typedef unsigned char  BYTE;
 #define NULL  0
 #endif /* !NULL */
 
-/* Joypad buttons */
-#define JOYPAD_A            0x01
-#define JOYPAD_B            0x02
-#define JOYPAD_SELECT       0x04
-#define JOYPAD_START        0x08
-#define JOYPAD_RIGHT        0x10
-#define JOYPAD_LEFT         0x20
-#define JOYPAD_UP           0x40
-#define JOYPAD_DOWN         0x80
-
 #ifdef __cplusplus
 extern "C" {
 #endif
