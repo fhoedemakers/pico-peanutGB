@@ -30,8 +30,6 @@ You need a FAT32 formatted SD card to put your .gb roms on.
 TODO
 
 
-Also original NES and WII-classic controllers are supported in some configurations. See the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus) for more info.
-
 ## Menu Usage
 Gamepad buttons:
 - UP/DOWN: Next/previous item in the menu.
