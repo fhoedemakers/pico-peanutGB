@@ -1,50 +1,34 @@
 
 # PicoPeanutGB.
 
-This software is a port of [SmsPlus](https://segaretro.org/SMS_Plus), a Sega Master System and Game Gear emulator for RP2040 based microcontroller boards like the RaspberryPi Pico. Sound and video are ouput over HDMI.
+This software is a port of [Peanut-GB](https://github.com/deltabeard/Peanut-GB), a DMG Game Boy emulator for RP2350 based microcontroller boards like the RaspberryPi Pico 2. Sound and video are ouput over HDMI.
 The code for HDMI output is based on [Shuichi Takano's Pico-InfoNes project](https://github.com/shuichitakano/pico-infones) which in turn is based on [PicoDVI](https://github.com/Wren6991/PicoDVI).
 
-Put your Master System (.sms) and Game Gear (.gg) rom files on a FAT32 formatted SD card. You can organize the roms in directories. A menu is displayed on which you can select the rom to play.
+Put your Game Boy (.gb) rom files on a FAT32 formatted SD card. You can organize the roms in directories. A menu is displayed on which you can select the rom to play.
+
+> [!NOTE]
+> The emulator runs well on the Raspberry Pi Pico 2, but is too slow on the original Raspberry Pi Pico or other RP2040 based boards. 
 
 ## Work in progress
 
-**This is a work in progress, and there are still some issues to be fixed. The emulator runs decently well. Some games may not run at full speed or at all. (afterburner).**
+**This is a work in progress.**
 
 > **WARNING** Some games show red flashing between screens. This can be occasionally or severe depending on the game. If you are sensitive for this, or experience health issues while playing those games, please stop playing immediately.
 
 ## System requirements - What do yo need?
 
+A **Raspberry Pi Pico 2** on a Pimoroni Pico DV Deno Base, or a **Raspberry Pi Pico 2** on a breadboard. The emulator is too slow on the original Pico or other RP2040 based boards.
+
 The binary specific for your config can be downloaded from the [releases](https://github.com/fhoedemakers/PicoPeanutGB/releases/latest) page.
 
-You need a FAT32 formatted SD card to put your .sms and .gg roms on.
+You need a FAT32 formatted SD card to put your .gb roms on.
 
-## For Raspberry Pi Pico / Pico W
-
-- Raspberry Pi Pico and [Pimoroni Pico DV Demo Base](https://shop.pimoroni.com/products/pimoroni-pico-dv-demo-base?variant=39494203998291)
-- [Custom Printed Circuit Board](https://github.com/fhoedemakers/pico-infonesPlus/blob/main/README.md#pcb-with-raspberry-pi-pico)
-- Breadboard with components.
-
-## Other RP2040 based boards
-
-These boards already contain an RP2040 cpu, a separate Raspberry Pi Pico is not needed.
-
-- [Adafruit Feather RP2040 with DVI Output](https://www.adafruit.com/product/5710) and [FeatherWing - RTC + SD](https://www.adafruit.com/product/2922).
-- [Waveshare RP2040-PiZero Development Board](https://www.waveshare.com/rp2040-pizero.htm)
-
-> For more detailed instructions and specific configurations, see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus). (For using a breadboard with components or how to use an Original NES or WII-classic controller.)
+> For detailed instructions and specific configurations, see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus). 
 
 ## Video
-Click on image below to see a demo video.
 
-[![Video](https://img.youtube.com/vi/__E8h2Ay3g8/0.jpg)](https://www.youtube.com/watch?v=__E8h2Ay3g8)
+TODO
 
-
-## Supported USB controller
-The following controllers are supported.
-
-- BUFFALO BGC-FC801
-- SONY DUALSHOCK 4
-- SONY DualSense
 
 Also original NES and WII-classic controllers are supported in some configurations. See the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus) for more info.
 
@@ -75,9 +59,3 @@ Build shell scripts are available:
 - build_ws_rp2040_pizero.sh: For the Wavehare device
 
 The _debug.sh scripts can be use to create a debug build for each system.
-
-## Things to do (if possible):
-
-- [ ] Improve performance
-- [ ] Save states
-
