@@ -24,6 +24,7 @@ The binary specific for your config can be downloaded from the [releases](https:
 
 You need a FAT32 formatted SD card to put your .gb roms on.
 
+> [!NOTE]
 > For detailed instructions and specific configurations, see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus). 
 
 ## Video
