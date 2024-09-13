@@ -17,12 +17,12 @@ then
 	echo "Please install picotool from https://github.com/raspberrypi/picotool.git" 
 	exit
 fi
-# build for Pico
-HWCONFIGS="1 2 3 4"
-for HWCONFIG in $HWCONFIGS
-do	
-	./bld.sh -c $HWCONFIG
-done
+# build for Pico is disabled. RP2040 builds are too slow.
+# HWCONFIGS="1 2 3 4"
+# for HWCONFIG in $HWCONFIGS
+# do	
+# 	./bld.sh -c $HWCONFIG
+# done
 # build for Pico 2
 HWCONFIGS="1 2"
 for HWCONFIG in $HWCONFIGS
