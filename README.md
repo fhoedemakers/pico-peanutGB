@@ -20,7 +20,7 @@ Put your Game Boy (.gb) rom files on a FAT32 formatted SD card. You can organize
 
 A **Raspberry Pi Pico 2** on a Pimoroni Pico DV Deno Base, or a **Raspberry Pi Pico 2** on a breadboard or PCB. The emulator is too slow on the original Pico or other RP2040 based boards.
 
-The binary specific for your config can be downloaded from the [releases](https://github.com/fhoedemakers/PicoPeanutGB/releases/latest) page.
+The binary specific for your config can be downloaded from the [releases](https://github.com/fhoedemakers/PicoPeanutGB/releases/latest) page. Only Pico binaries are available.
 
 You need a FAT32 formatted SD card to put your .gb roms on.
 
