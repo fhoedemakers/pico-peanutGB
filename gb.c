@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "gb.h"
 #define __not_in_flash_func(func_name) func_name
+
 #include "peanut_gb.h"
 struct priv_t
 {
@@ -104,7 +105,7 @@ void gb_error(struct gb_s *gb, const enum gb_error_e gb_err, const uint16_t val)
     free(priv->rom);
     exit(EXIT_FAILURE);
 }
-void *startemulation(uint8_t *rom, char *errormessage)
+int startemulation(uint8_t *rom, char *errormessage)
 {
     static char ErrorMessage[40];
     ErrorMessage[0] = 0;
@@ -134,5 +135,22 @@ void *startemulation(uint8_t *rom, char *errormessage)
         return 0;
     }
 
-    return &gb;
+    return 1;
+}
+
+void emu_init_lcd(void (*lcd_draw_line)(const uint_fast8_t line)) {
+    gb_init_lcd(&gb, lcd_draw_line);
+    gb.direct.interlace = false;
+    gb.direct.frame_skip = false;
+}
+
+void emu_run_frame()
+{
+    gb_run_frame(&gb);
+}
+void emu_set_gamepad(uint8_t joypad) {
+    gb.direct.joypad = joypad;
+}
+void emu_audio_callback(uint8_t *stream, int len) {
+    audio_callback(NULL, stream, len);
 }

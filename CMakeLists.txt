@@ -109,6 +109,7 @@ add_executable(${projectname}
     RomLister.cpp
     FrensHelpers.cpp
     gb.c
+    minigb_apu.c
 )
 
 pico_set_program_name(${projectname} "${projectname}")
@@ -143,7 +144,8 @@ target_compile_definitions(${projectname} PUBLIC
     NES_PIN_LAT=${NES_LAT}
     WII_PIN_SDA=${WII_SDA}
     WII_PIN_SCL=${WII_SCL}
-    LED_GPIO_PIN=${LED_GPIO_PIN})
+    LED_GPIO_PIN=${LED_GPIO_PIN}
+    ENABLE_SOUND=1)
     
 target_link_libraries(${projectname}
 PRIVATE

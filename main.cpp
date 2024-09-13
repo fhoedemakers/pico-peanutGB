@@ -32,7 +32,6 @@
 #include "nespad.h"
 #include "wiipad.h"
 #include "FrensHelpers.h"
-#include "peanut_gb.h"
 #include "gb.h"
 #include "ff.h"
 
@@ -250,45 +249,36 @@ bool initSDCard()
 int sampleIndex = 0;
 void __not_in_flash_func(processaudio)(int offset)
 {
-#if 0
-    int samples = 4; // 735/192 = 3.828125 192*4=768 735/3=245
 
-    if (offset == (IS_GG ? 24 : 0))
-    {
-        sampleIndex = 0;
-    }
-    else
-    {
-        sampleIndex += samples;
-        if (sampleIndex >= 735)
-        {
-            return;
-        }
-    }
-    short *p1 = snd.buffer[0] + sampleIndex;
-    short *p2 = snd.buffer[1] + sampleIndex;
-    while (samples)
-    {
-        auto &ring = dvi_->getAudioRingBuffer();
-        auto n = std::min<int>(samples, ring.getWritableSize());
-        if (!n)
-        {
-            return;
-        }
-        auto p = ring.getWritePointer();
-        int ct = n;
-        while (ct--)
-        {
-            int l = (*p1++ << 16) + *p2++;
-            // works also : int l = (*p1++ + *p2++) / 2;
-            int r = l;
-            // int l = *wave1++;
-            *p++ = {static_cast<short>(l), static_cast<short>(r)};
-        }
-        ring.advanceWritePointer(n);
-        samples -= n;
-    }
-#endif
+    #define NSAMPLES 4
+    int samples = NSAMPLES; // 735/192 = 3.828125 192*4=768 735/3=245
+
+    int16_t samplebuffer[NSAMPLES];
+    emu_audio_callback((uint8_t *)samplebuffer, NSAMPLES * 2);
+    // short *p1 = snd.buffer[0] + sampleIndex;
+    // short *p2 = snd.buffer[1] + sampleIndex;
+    // while (samples)
+    // {
+    //     auto &ring = dvi_->getAudioRingBuffer();
+    //     auto n = std::min<int>(samples, ring.getWritableSize());
+    //     if (!n)
+    //     {
+    //         return;
+    //     }
+    //     auto p = ring.getWritePointer();
+    //     int ct = n;
+    //     while (ct--)
+    //     {
+    //         int l = (*p1++ << 16) + *p2++;
+    //         // works also : int l = (*p1++ + *p2++) / 2;
+    //         int r = l;
+    //         // int l = *wave1++;
+    //         *p++ = {static_cast<short>(l), static_cast<short>(r)};
+    //     }
+    //     ring.advanceWritePointer(n);
+    //     samples -= n;
+    // }
+
 }
 uint32_t time_us()
 {
@@ -332,7 +322,7 @@ static DWORD prevOtherButtons[2]{};
 
 static int rapidFireMask[2]{};
 static int rapidFireCounter = 0;
-void processinput(void *gb, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed)
+void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed)
 {
     // pwdPad1 and pwdPad2 are only used in menu and are only set on first push
     *pdwPad1 = *pdwPad2 = *pdwSystem = 0;
@@ -417,9 +407,9 @@ void processinput(void *gb, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bo
         {
             dst = v;
         }
-        if ( i== 0 && gb != nullptr )
+        if ( !fromMenu && i == 0)
         {
-            ((struct gb_s *)gb)->direct.joypad = ~v;   
+           emu_set_gamepad(~v); 
         }
        
     }
@@ -454,7 +444,7 @@ int ProcessAfterFrameIsRendered(bool frommenu)
     return count;
 }
 
-WORD *__not_in_flash_func(infoGB_getlinebuffer)()
+WORD *__not_in_flash_func(dvi_getlinebuffer)()
 {
     uint16_t *sbuffer;
 #if NORENDER
@@ -543,23 +533,22 @@ bool load_rom(char *, unsigned char *)
 {
     return true;
 }
-void __not_in_flash_func(process)(struct gb_s *gb)
+void __not_in_flash_func(process)()
 {
 
     DWORD pdwPad1, pdwPad2, pdwSystem; // have only meaning in menu
     int fcount = 0;
-    gb_init_lcd(gb, &infogb_plot_line);
-    gb->direct.interlace = false;
-    gb->direct.frame_skip = false;
+    emu_init_lcd(&infogb_plot_line);
     uint32_t ti1, ti2;
     int minframes = 0, maxframes = 0;
     int frametime = 0;
     bool print = false;
     while (reset == false)
     {
-        processinput(gb, &pdwPad1, &pdwPad2, &pdwSystem, false);
+        //processaudio(0);
+        processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false);
         ti1 = time_us();
-        gb_run_frame(gb);
+        emu_run_frame();
         ti2 = time_us();
         frametime = (ti2 - ti1) / 1000;
         print = false;
@@ -606,9 +595,6 @@ int main()
     size_t tmpSize;
 
     ErrorMessage = errMSG;
-
-    enum gb_init_error_e ret;
-    static struct gb_s *gb;
 
     // Set voltage and clock frequency
     vreg_set_voltage(VREG_VOLTAGE_1_20); // VREG_VOLTAGE_1_20);
@@ -676,7 +662,8 @@ int main()
     }
     // When a game is started from the menu, the menu will reboot the device.
     // After reboot the emulator will start the selected game.
-    if (watchdog_caused_reboot() && isFatalError == false && selectedRom[0] != 0)
+    //if (watchdog_caused_reboot() && isFatalError == false && selectedRom[0] != 0)
+    if (true)
     {
         // Determine loaded rom
         printf("Rebooted by menu\n");
@@ -820,9 +807,9 @@ int main()
 
         printf("Initialising Game Boy\n");
         uint8_t *rom = reinterpret_cast<unsigned char *>(GB_FILE_ADDR);
-        if ((gb = (struct gb_s *)startemulation(rom, ErrorMessage)))
+        if ( startemulation(rom, ErrorMessage))
         {
-            process(gb);
+            process();
         }
         selectedRom[0] = 0;
     }

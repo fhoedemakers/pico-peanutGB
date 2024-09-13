@@ -1396,12 +1396,10 @@ static int compare_sprites(const void *in1, const void *in2)
 }
 #endif
 
-WORD *infoGB_getlinebuffer();
-
 void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 {
 	uint8_t pixels[160] = {0};
-	WORD * buff = infoGB_getlinebuffer();
+	WORD * buff = dvi_getlinebuffer();
 	uint16_t palette444[] = {
         0xF7DE, 0x7BEF, 0x39E7, 0x0000,
     };
