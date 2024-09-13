@@ -13,7 +13,8 @@ Put your Game Boy (.gb) rom files on a FAT32 formatted SD card. You can organize
 
 **This is a work in progress.**
 
-> **WARNING** Some games show red flashing between screens. This can be occasionally or severe depending on the game. If you are sensitive for this, or experience health issues while playing those games, please stop playing immediately.
+> [!WARNING]
+>  Some games show red flashing between screens. This can be occasionally or severe depending on the game. If you are sensitive for this, or experience health issues while playing those games, please stop playing immediately.
 
 ## System requirements - What do yo need?
 
