@@ -246,38 +246,48 @@ bool initSDCard()
     }
     return true;
 }
-int sampleIndex = 0;
+
 void __not_in_flash_func(processaudio)(int offset)
 {
 
-    #define NSAMPLES 4
-    int samples = NSAMPLES; // 735/192 = 3.828125 192*4=768 735/3=245
+    int samples = 6; 
+   
+    //printf("sample_size: %d - %d\n", sample_size, sample_size * 144);
+    //samples = AUDIO_BUFFER_SIZE;
+   
+    sizeof(short);
+    sizeof(uint16_t);
+    sizeof(int);
 
-    int16_t samplebuffer[NSAMPLES];
-    emu_audio_callback((uint8_t *)samplebuffer, NSAMPLES * 2);
-    // short *p1 = snd.buffer[0] + sampleIndex;
-    // short *p2 = snd.buffer[1] + sampleIndex;
-    // while (samples)
-    // {
-    //     auto &ring = dvi_->getAudioRingBuffer();
-    //     auto n = std::min<int>(samples, ring.getWritableSize());
-    //     if (!n)
-    //     {
-    //         return;
-    //     }
-    //     auto p = ring.getWritePointer();
-    //     int ct = n;
-    //     while (ct--)
-    //     {
-    //         int l = (*p1++ << 16) + *p2++;
-    //         // works also : int l = (*p1++ + *p2++) / 2;
-    //         int r = l;
-    //         // int l = *wave1++;
-    //         *p++ = {static_cast<short>(l), static_cast<short>(r)};
-    //     }
-    //     ring.advanceWritePointer(n);
-    //     samples -= n;
-    // }
+    // 0-1 bytes in audio buffer are left and 2-3 bytes are right
+    // 2 bytes per sample
+    // 144 samples per frame
+    // 6 samples per line
+    //printf("offset: %d\n", offset * samples *2  );
+    int16_t *p1 = (int16_t *)&audio_stream[offset * samples * 2];        
+    while (samples)
+    {
+                
+        auto &ring = dvi_->getAudioRingBuffer();
+        auto n = std::min<int>(samples, ring.getWritableSize());
+        if (!n)
+        {
+            //printf("Audio buffer full: %d\n", samples);
+            return;
+        }
+        auto p = ring.getWritePointer();
+        int ct = n;
+        while (ct--)
+        {
+            
+            int l = *p1++;
+            int r = *p1++;
+            *p++ = {static_cast<short>(l), static_cast<short>(r)};
+        }
+        ring.advanceWritePointer(n);
+        samples -= n;
+
+    }
 
 }
 uint32_t time_us()
@@ -466,7 +476,7 @@ WORD *__not_in_flash_func(dvi_getlinebuffer)()
 void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
 {
 #if !NORENDER
-
+    int origline = line;
     line += MARGINTOP;
     static uint_fast8_t prevline = MARGINTOP - 1;
     if (line == MARGINTOP)
@@ -523,8 +533,10 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
         __builtin_memcpy(buffer, currentLineBuffer, 512 * sizeof(currentLineBuffer[0]));
         //__builtin_memset(buffer, 0, 512);
         dvi_->setLineBuffer(line - 1, b);
+         processaudio(origline - 1);
     }
     dvi_->setLineBuffer(line, currentLineBuffer_);
+    processaudio(origline);
     prevline = line;
 #endif
 }
@@ -545,7 +557,6 @@ void __not_in_flash_func(process)()
     bool print = false;
     while (reset == false)
     {
-        //processaudio(0);
         processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false);
         ti1 = time_us();
         emu_run_frame();

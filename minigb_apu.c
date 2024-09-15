@@ -372,7 +372,7 @@ void audio_callback(void *userdata, uint8_t *stream, int len)
 	/* Appease unused variable warning. */
 	(void)userdata;
 
-	memset(stream, 0, len);
+	memset(stream, 0, len * sizeof(uint16_t));  // Was eerst memset(stream, 0, len);
 
 	update_square(samples, 0);
 	update_square(samples, 1);

@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 
-#define AUDIO_SAMPLE_RATE	32768
+#define AUDIO_SAMPLE_RATE	44100   // 32768
 
 #define DMG_CLOCK_FREQ		4194304.0
 #define SCREEN_REFRESH_CYCLES	70224.0

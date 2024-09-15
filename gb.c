@@ -17,6 +17,11 @@ static struct priv_t priv;
 enum gb_init_error_e ret;
 static struct gb_s gb;
 
+#if ENABLE_SOUND
+#define AUDIO_BUFFER_SIZE (AUDIO_SAMPLES * 4)
+uint16_t *audio_stream; // [AUDIO_BUFFER_SIZE];
+int sample_size = AUDIO_BUFFER_SIZE / 144;
+#endif
 /**
  * Returns a byte from the ROM file at the given address.
  */
@@ -122,6 +127,13 @@ int startemulation(uint8_t *rom, char *errormessage)
         printf("%s\n", ErrorMessage);
         return 0;
     }
+#if ENABLE_SOUND
+    printf("Starting audio\n");
+    printf("Allocating %d bytes for audio buffer.\n", AUDIO_BUFFER_SIZE * sizeof(uint16_t));
+    printf("Audio Samples: %d\n", AUDIO_SAMPLES * 2);
+    audio_stream = (uint16_t *)malloc(AUDIO_BUFFER_SIZE * sizeof(uint16_t));
+    audio_init();
+#endif
     uint32_t save_size = gb_get_save_size(&gb);
     printf("Allocating %d bytes for cart ram.\n", save_size);
     if (save_size > 0 && save_size <= 0x2000)
@@ -147,10 +159,11 @@ void emu_init_lcd(void (*lcd_draw_line)(const uint_fast8_t line)) {
 void emu_run_frame()
 {
     gb_run_frame(&gb);
+#if ENABLE_SOUND
+    // send audio buffer to playback device
+    audio_callback(NULL, (uint8_t *)audio_stream, AUDIO_BUFFER_SIZE);   
+#endif
 }
 void emu_set_gamepad(uint8_t joypad) {
     gb.direct.joypad = joypad;
-}
-void emu_audio_callback(uint8_t *stream, int len) {
-    audio_callback(NULL, stream, len);
 }
