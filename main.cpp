@@ -814,6 +814,7 @@ int main()
         if (startemulation(rom, ErrorMessage))
         {
             process();
+            stopemulation();
         }
         selectedRom[0] = 0;
     }

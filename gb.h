@@ -30,6 +30,7 @@ extern "C" {
 #include "minigb_apu.h"
 #endif
 int  startemulation(uint8_t *rom, char *errormessage);
+void stopemulation();
 void emu_init_lcd(void (*lcd_draw_line)(const uint_fast8_t line));
 void emu_run_frame();
 void emu_set_gamepad(uint8_t joypad);

@@ -138,6 +138,7 @@ int startemulation(uint8_t *rom, char *errormessage)
 #endif
     uint32_t save_size = gb_get_save_size(&gb);
     printf("Allocating %d bytes for cart ram.\n", save_size);
+    priv.cart_ram = NULL;
     if (save_size > 0 && save_size <= 0x2000)
     {
         priv.cart_ram = (uint8_t *)malloc(save_size);
@@ -168,4 +169,10 @@ void emu_run_frame()
 }
 void emu_set_gamepad(uint8_t joypad) {
     gb.direct.joypad = joypad;
+}
+
+void stopemulation() {
+    if ( priv.cart_ram != NULL ) {
+        free(priv.cart_ram);
+    }
 }
