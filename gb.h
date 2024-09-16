@@ -21,7 +21,7 @@ typedef unsigned char  BYTE;
 #ifndef NULL
 #define NULL  0
 #endif /* !NULL */
-extern uint16_t *audio_stream;
+extern uint16_t audio_stream[];
 extern int sample_size;
 #ifdef __cplusplus
 extern "C" {

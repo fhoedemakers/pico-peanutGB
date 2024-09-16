@@ -19,8 +19,8 @@ static struct gb_s gb;
 
 #if ENABLE_SOUND
 #define AUDIO_BUFFER_SIZE (AUDIO_SAMPLES * 4)
-uint16_t *audio_stream; // [AUDIO_BUFFER_SIZE];
-int sample_size = AUDIO_BUFFER_SIZE / 144;
+
+uint16_t audio_stream[AUDIO_BUFFER_SIZE];
 #endif
 /**
  * Returns a byte from the ROM file at the given address.
@@ -129,9 +129,11 @@ int startemulation(uint8_t *rom, char *errormessage)
     }
 #if ENABLE_SOUND
     printf("Starting audio\n");
-    printf("Allocating %d bytes for audio buffer.\n", AUDIO_BUFFER_SIZE * sizeof(uint16_t));
-    printf("Audio Samples: %d\n", AUDIO_SAMPLES * 2);
-    audio_stream = (uint16_t *)malloc(AUDIO_BUFFER_SIZE * sizeof(uint16_t));
+    // printf("Number of elements in audiobuffer array: %d\n", AUDIO_BUFFER_SIZE);
+    // printf("Allocating %d bytes for audio buffer.\n", AUDIO_BUFFER_SIZE * sizeof(uint16_t));
+    // printf("Audio Samples per frame: %d\n", AUDIO_SAMPLES);
+    // Audiobuffer is a 32 bit array.
+    // audio_stream = (uint16_t *)malloc(AUDIO_BUFFER_SIZE);
     audio_init();
 #endif
     uint32_t save_size = gb_get_save_size(&gb);
