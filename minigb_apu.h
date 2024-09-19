@@ -15,11 +15,8 @@
 #define SCREEN_REFRESH_CYCLES	70224.0
 #define VERTICAL_SYNC		(DMG_CLOCK_FREQ/SCREEN_REFRESH_CYCLES)
 
-// #define AUDIO_SAMPLES		((unsigned)(AUDIO_SAMPLE_RATE / VERTICAL_SYNC))
-// To avoid compile time warning: variably modified 'audio_stream' at file scope
-// when declaring uint16_t audio_stream[AUDIO_BUFFER_SIZE]; in gb.c, AUDIO_SAMPLES is hardcoded defined as 739, which is the 
-// result of the calculation above.
-#define AUDIO_SAMPLES  739
+#define AUDIO_SAMPLES		((unsigned)(AUDIO_SAMPLE_RATE / VERTICAL_SYNC))
+
 /**
  * Fill allocated buffer "data" with "len" number of 32-bit floating point
  * samples (native endian order) in stereo interleaved format.
