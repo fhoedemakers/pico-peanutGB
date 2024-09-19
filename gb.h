@@ -21,7 +21,7 @@ typedef unsigned char  BYTE;
 #ifndef NULL
 #define NULL  0
 #endif /* !NULL */
-extern uint16_t audio_stream[];
+extern uint16_t *audio_stream;
 extern int sample_size;
 #ifdef __cplusplus
 extern "C" {
@@ -29,8 +29,8 @@ extern "C" {
 #if ENABLE_SOUND
 #include "minigb_apu.h"
 #endif
-int  startemulation(uint8_t *rom, char *errormessage);
-void stopemulation();
+int  startemulation(uint8_t *rom, char *romname, const char *savedir, char *errormessage);
+void stopemulation(char *romname, const char *savedir);
 void emu_init_lcd(void (*lcd_draw_line)(const uint_fast8_t line));
 void emu_run_frame();
 void emu_set_gamepad(uint8_t joypad);
