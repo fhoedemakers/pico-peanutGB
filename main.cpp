@@ -810,11 +810,13 @@ int main()
         printf("Now playing: %s\n", selectedRom);
 
         printf("Initialising Game Boy\n");
-        uint8_t *rom = reinterpret_cast<unsigned char *>(GB_FILE_ADDR);
-        if (startemulation(rom, ErrorMessage))
+        uint8_t *rom = reinterpret_cast<unsigned char *>(GB_FILE_ADDR);        
+        if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage))
         {
             process();
-            stopemulation();
+            stopemulation(romName, GAMESAVEDIR);
+        } else {
+            isFatalError = true;
         }
         selectedRom[0] = 0;
     }
