@@ -11,7 +11,8 @@ Put your Game Boy (.gb) rom files on a FAT32 formatted SD card. You can organize
 
 ## Work in progress
 
-**This is a work in progress.**
+**This is a work in progress.** 
+The emulator is still in development and may have performance issues, causing some games to not run at full speed and red screen flicker. It is not cycle accurate, feature-complete, fully tested, or entirely stable. Maybe some games will not run at all.
 
 > [!WARNING]
 >  Some games show red flashing between screens. This can be occasionally or severe depending on the game. If you are sensitive for this, or experience health issues while playing those games, please stop playing immediately.
