@@ -5,6 +5,8 @@
 #define __not_in_flash_func(func_name) func_name
 #include "peanut_gb.h"
 
+#define MAX_SRAM_SIZE (0x2000 *4)    // 32KB
+
 struct priv_t
 {
     /* Pointer to allocated memory holding GB file. */
@@ -218,7 +220,7 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
     uint32_t save_size = gb_get_save_size(&gb);
     printf("Allocating %d bytes for cart ram.\n", save_size);
     priv.cart_ram = NULL;
-    if (save_size > 0 && save_size <= 0x2000)
+    if (save_size > 0 && save_size <= MAX_SRAM_SIZE)
     {
         priv.cart_ram = (uint8_t *)malloc(save_size);
         memset(priv.cart_ram, 0, save_size);
@@ -231,9 +233,9 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
             loadsram(romname, savedir);
         }
     }
-    if (save_size > 0x2000)
+    if (save_size > MAX_SRAM_SIZE)
     {
-        strcpy(ErrorMessage, "Save size too large, max 8KB");
+        strcpy(ErrorMessage, "Save size too large, max 32KB");
         printf("%s\n", ErrorMessage);
         return 0;
     }
