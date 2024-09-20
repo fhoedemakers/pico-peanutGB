@@ -5,7 +5,7 @@
 #define __not_in_flash_func(func_name) func_name
 #include "peanut_gb.h"
 
-#define MAX_SRAM_SIZE (0x2000 *4)    // 32KB
+#define MAX_SRAM_SIZE (0x2000 *4)    // Max 32KB SRAM
 
 struct priv_t
 {
@@ -13,7 +13,6 @@ struct priv_t
     uint8_t *rom;
     /* Pointer to allocated memory holding save file. */
     uint8_t *cart_ram;
-
     /* Frame buffer */
 };
 static struct priv_t priv;
@@ -22,7 +21,6 @@ static struct gb_s gb;
 
 #if ENABLE_SOUND
 #define AUDIO_BUFFER_SIZE (AUDIO_SAMPLES * sizeof(u_int32_t))
-
 uint16_t *audio_stream;
 #endif
 
@@ -57,7 +55,7 @@ void stripextensionfromfilename(char *filename)
     *lastdot = 0;
 }
 /**
- * Returns a byte from the ROM file at the given address.
+ * Returns a byte from the ROM file at the given address. Not used. Emulator reads directly from GBaddress.
  */
 
 uint8_t *address = (uint8_t *)GB_FILE_ADDR;
@@ -145,6 +143,7 @@ void gb_error(struct gb_s *gb, const enum gb_error_e gb_err, const uint16_t val)
     exit(EXIT_FAILURE);
 }
 
+// read cart ram from file
 void loadsram(char *romname, const char *savedir)
 {
     char pad[FF_MAX_LFN];
@@ -172,6 +171,8 @@ void loadsram(char *romname, const char *savedir)
         printf("No SRAM file found\n");
     }
 }
+
+// save SRAM to file	
 void savesram(char *romname, const char *savedir) {
     char pad[FF_MAX_LFN];
     char fileName[FF_MAX_LFN];
@@ -195,9 +196,7 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
 {
     
     ErrorMessage[0] = 0;
-    
     priv.rom = rom;
-
     ret = gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
                   &gb_cart_ram_write, &gb_error, &priv);
     
@@ -207,7 +206,7 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
         printf("%s\n", ErrorMessage);
         return 0;
     }
-    printf("Emulator initialized, rom name: %s\n", romname);
+    printf("Emulator initialized, rom name.\n");
 #if ENABLE_SOUND
     printf("Starting audio\n");
     printf("Number of %d-byte samples per frame: %d\n", sizeof(u_int32_t),  AUDIO_SAMPLES);
