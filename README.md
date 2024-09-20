@@ -7,7 +7,7 @@ The code for HDMI output is based on [Shuichi Takano's Pico-InfoNes project](htt
 Put your Game Boy (.gb) rom files on a FAT32 formatted SD card. You can organize the roms in directories. A menu is displayed on which you can select the rom to play.
 
 > [!NOTE]
-> The emulator runs well on the Raspberry Pi Pico 2, but is too slow on the original Raspberry Pi Pico or other RP2040 based boards. 
+> The emulator runs well on the Raspberry Pi Pico 2, but is too slow on the original Raspberry Pi Pico or other RP2040 based boards. Only releases for Pico 2 (RP2350) are available.
 
 ## Work in progress
 
