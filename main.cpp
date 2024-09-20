@@ -51,7 +51,7 @@ bool isFatalError = false;
 static FATFS fs;
 char *romName;
 
-static bool fps_enabled = true;
+static bool fps_enabled = false;
 static uint32_t start_tick_us = 0;
 static uint32_t fps = 0;
 static char fpsString[3] = "00";
@@ -68,7 +68,6 @@ static char fpsString[3] = "00";
 #define FPSEND ((FPSSTART) + 8)
 
 bool reset = false;
-bool frametimeenabled = false;
 
 #ifndef NORENDER
 #define NORENDER 0 // 0 is render frames in emulation loop
@@ -364,9 +363,6 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
                       (nespadbuttons & NESPAD_START ? START : 0) | 0);
             }
         }
-        // if (gp.buttons & io::GamePadState::Button::SELECT) printf("SELECT\n");
-        // if (gp.buttons & io::GamePadState::Button::START) printf("START\n");
-        // input.pad[i] = smsbuttons;
         auto p1 = v;
         if (ignorepushed == false)
         {
@@ -389,10 +385,8 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
             // Toggle frame rate display
             if (pushed & A)
             {
-                // fps_enabled = !fps_enabled;
+                fps_enabled = !fps_enabled;
                 // printf("FPS: %s\n", fps_enabled ? "ON" : "OFF");
-                printf("FPS: %d- %d\n", fps, dvi_->getFrameCounter());
-                frametimeenabled = !frametimeenabled;
             }
             if (pushed & UP)
             {
@@ -510,20 +504,13 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
         }
 #endif
     }
+    // whene a scanline is skipped, copy current line buffer to the skipped line.
     if (line - 1 != prevline)
     {
-        // printf("Line: %d - previous: %d \n", line, prevline);
-        // prevline = line;
         auto b = dvi_->getLineBuffer();
         WORD *buffer = b->data();
         WORD *currentLineBuffer = currentLineBuffer_->data();
-        // Copy previous line buffer to current line buffer
-        // for (int i = 0; i < 512; i++)
-        // {
-        //     buffer[i] = currentLineBuffer[i];
-        // }
         __builtin_memcpy(buffer, currentLineBuffer, 512 * sizeof(currentLineBuffer[0]));
-        //__builtin_memset(buffer, 0, 512);
         dvi_->setLineBuffer(line - 1, b);
         processaudio();
     }
@@ -544,9 +531,7 @@ void __not_in_flash_func(process)()
     int fcount = 0;
     emu_init_lcd(&infogb_plot_line);
     uint32_t ti1, ti2;
-    int minframes = 0, maxframes = 0;
     int frametime = 0;
-    bool print = false;
     while (reset == false)
     {
         sample_index = 0;
@@ -554,25 +539,7 @@ void __not_in_flash_func(process)()
         ti1 = time_us();
         emu_run_frame();
         ti2 = time_us();
-        frametime = (ti2 - ti1) / 1000;
-        print = false;
-        if (minframes == 0 || frametime < minframes)
-        {
-            minframes = frametime;
-            print = true;
-        }
-        if (frametime > maxframes)
-        {
-            maxframes = frametime;
-            print = true;
-        }
-        // if ( print ) {
-        //     printf("Min frame time:%d Max frame time  %d ms\n", minframes, maxframes);
-        // }
-        // printf("Frame time: %d ms\n", frametime);
-        // if ( frametime > 10) {
-        //     printf("Break\n");
-        // }
+        frametime = ti2 - ti1;
         fcount++;
         ProcessAfterFrameIsRendered(false);
     }
@@ -607,7 +574,7 @@ int main()
 
     stdio_init_all();
     sleep_ms(500);
-    printf("Starting Game Boy Emulator\n");
+    printf("Starting Peanut_GB Game Boy Emulator.\n");
 
 #if LED_GPIO_PIN != -1
     gpio_init(LED_GPIO_PIN);
@@ -786,15 +753,10 @@ int main()
     wiipad_begin();
 #endif
     // 空サンプル詰めとく
-    dvi_->getAudioRingBuffer().advanceWritePointer(255);
+    dvi_->getAudioRingBuffer().advanceWritePointer(255);  // increased from 128 to 255 to make audio work.
 
     multicore_launch_core1(core1_main);
-    // smsp_gamedata_set(argv[1]);
-    // Check the type of ROM
-    // sms.console = strcmp(strrchr(argv[1], '.'), ".gg") ? CONSOLE_SMS : CONSOLE_GG;
-    // sms.console = CONSOLE_SMS; // For now, we only support SMS
-    //
-
+    
     while (true)
     {
         if (strlen(selectedRom) == 0 || reset == true)
@@ -809,7 +771,7 @@ int main()
         reset = false;
         printf("Now playing: %s\n", selectedRom);
 
-        printf("Initialising Game Boy\n");
+        printf("Initializing Game Boy Emulator\n");
         uint8_t *rom = reinterpret_cast<unsigned char *>(GB_FILE_ADDR);        
         if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage))
         {
