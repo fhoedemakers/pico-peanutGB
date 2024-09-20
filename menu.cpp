@@ -386,7 +386,7 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
     /// size_t chr_size;
     // Borrow ChrBuffer to store directory contents
     // void *buffer = InfoNes_GetChrBuf(&chr_size);
-    size_t bufsize = 0x2000;
+    size_t bufsize = 0x2000 *2;
     dirbuffer =(BYTE *) (BYTE *)malloc(bufsize);
     printf("Allocated %d bytes for dirbuffer\n", bufsize); 
     
