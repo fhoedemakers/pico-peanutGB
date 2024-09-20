@@ -815,9 +815,7 @@ int main()
         {
             process();
             stopemulation(romName, GAMESAVEDIR);
-        } else {
-            isFatalError = true;
-        }
+        } 
         selectedRom[0] = 0;
     }
     return 0;
