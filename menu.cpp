@@ -25,8 +25,8 @@
 #define SCREEN_COLS 32
 #define SCREEN_ROWS 29
 
-#define STARTROW 2
-#define ENDROW 25
+#define STARTROW 3
+#define ENDROW 24
 #define PAGESIZE (ENDROW - STARTROW + 1)
 
 #define VISIBLEPATHSIZE (SCREEN_COLS - 3)
@@ -177,11 +177,24 @@ void ClearScreen(charCell *screenBuffer, int color)
 void displayRoms(Frens::RomLister romlister, int startIndex)
 {
     char buffer[ROMLISTER_MAXPATH + 4];
+    char s[SCREEN_COLS + 1];
     auto y = STARTROW;
     auto entries = romlister.GetEntries();
     ClearScreen(screenBuffer, bgcolor);
-    putText(1, 0, "Choose a rom to play:", fgcolor, bgcolor);
-    putText(1, SCREEN_ROWS - 1, "A: Select, B: Back", fgcolor, bgcolor);
+    strcpy(s, "- Pico-PeanutGB -");
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 0, s, fgcolor, bgcolor);  
+    strcpy(s, "Choose a rom to play:");
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 1, s, fgcolor, bgcolor);
+    for (int i = 1; i < SCREEN_COLS - 1; i++)
+    {
+        putText(i, STARTROW - 1, "-", fgcolor, bgcolor);
+    }
+    for (int i = 1; i < SCREEN_COLS - 1; i++)
+    {
+        putText(i, ENDROW + 1, "-", fgcolor, bgcolor);
+    }
+    strcpy(s, "A Select, B Back");
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, ENDROW + 2, s, fgcolor, bgcolor);
     putText(SCREEN_COLS - strlen(SWVERSION), SCREEN_ROWS - 1,SWVERSION, fgcolor, bgcolor);
     for (auto index = startIndex; index < romlister.Count(); index++)
     {
@@ -190,11 +203,11 @@ void displayRoms(Frens::RomLister romlister, int startIndex)
             auto info = entries[index];
             if (info.IsDirectory)
             {
-                snprintf(buffer, sizeof(buffer), "D %s", info.Path);
+                snprintf(buffer, SCREEN_COLS - 1, "D %s", info.Path);
             }
             else
             {
-                snprintf(buffer, sizeof(buffer), "R %s", info.Path);
+                snprintf(buffer, SCREEN_COLS - 1, "R %s", info.Path);
             }
 
             putText(1, y, buffer, fgcolor, bgcolor);
@@ -431,6 +444,7 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
             // reset horizontal scroll of highlighted row
             horzontalScrollIndex = 0;
             putText(3, selectedRow, selectedRomOrFolder, fgcolor, bgcolor);
+            putText(SCREEN_COLS - 1, selectedRow, " ", bgcolor, bgcolor);
 
             // if ((PAD1_Latch & Y) == Y)
             // {
@@ -614,7 +628,7 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
         {
             if ((frameCount % 30) == 0)
             {
-                if (strlen(selectedRomOrFolder + horzontalScrollIndex) > VISIBLEPATHSIZE)
+                if (strlen(selectedRomOrFolder + horzontalScrollIndex) >= VISIBLEPATHSIZE)
                 {
                     horzontalScrollIndex++;
                 }
@@ -623,6 +637,7 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
                     horzontalScrollIndex = 0;
                 }
                 putText(3, selectedRow, selectedRomOrFolder + horzontalScrollIndex, fgcolor, bgcolor);
+                putText(SCREEN_COLS - 1, selectedRow, " ", bgcolor, bgcolor);
             }
         }
         if (totalFrames == -1)
