@@ -260,7 +260,7 @@ void DisplayEmulatorErrorMessage(char *error)
 void showSplashScreen()
 {
     DWORD PAD1_Latch, PAD1_Latch2, pdwSystem;
-    char s[SCREEN_COLS];
+    char s[SCREEN_COLS + 1];
     ClearScreen(screenBuffer, bgcolor);
 
     strcpy(s, "PicoPeanutGB");
