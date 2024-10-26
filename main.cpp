@@ -323,7 +323,7 @@ static DWORD prevOtherButtons[2]{};
 
 static int rapidFireMask[2]{};
 static int rapidFireCounter = 0;
-void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed)
+void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed, char *gamepadType = nullptr)
 {
     // pwdPad1 and pwdPad2 are only used in menu and are only set on first push
     *pdwPad1 = *pdwPad2 = *pdwSystem = 0;
@@ -343,6 +343,9 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
                 (gp.buttons & io::GamePadState::Button::START ? START : 0) | 0;
         if (i == 0)
         {
+            if (gamepadType) {
+                strcpy(gamepadType, gp.GamePadName);
+            }
 #if NES_PIN_CLK != -1
             nespadbuttons = nespad_state;
 #endif
@@ -535,7 +538,7 @@ void __not_in_flash_func(process)()
     while (reset == false)
     {
         sample_index = 0;
-        processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false);
+        processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false, nullptr);
         ti1 = time_us();
         emu_run_frame();
         ti2 = time_us();

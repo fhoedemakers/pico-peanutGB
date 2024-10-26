@@ -35,6 +35,8 @@ extern util::ExclusiveProc exclProc_;
 extern std::unique_ptr<dvi::DVI> dvi_;
 void screenMode(int incr);
 
+static char connectedGamePadName[sizeof(io::GamePadState::GamePadName)];
+
 #define CBLACK 0
 #define CWHITE 0x3f
 #define CRED 3
@@ -158,6 +160,14 @@ static void putText(int x, int y, const char *text, int fgcolor, int bgcolor)
 
 void DrawScreen(int selectedRow)
 {
+    const char *spaces = "                   ";
+    char tmpstr[sizeof(connectedGamePadName) + 4];
+    if (selectedRow != -1)
+    {
+        putText(SCREEN_COLS / 2 - strlen(spaces) / 2, SCREEN_ROWS - 1, spaces, bgcolor, bgcolor);
+        snprintf(tmpstr,sizeof(tmpstr), "- %s -", connectedGamePadName[0] != 0 ? connectedGamePadName : "No USB GamePad");
+        putText(SCREEN_COLS / 2 - strlen(tmpstr) / 2, SCREEN_ROWS - 1, tmpstr, CLIGHTBLUE, CWHITE);
+    }
     for (auto line = 4; line < 236; line++)
     {
         drawline(line, selectedRow);
@@ -239,7 +249,7 @@ void DisplayEmulatorErrorMessage(char *error)
     {
         auto frameCount = ProcessAfterFrameIsRendered(true);
         DrawScreen(-1);
-        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false);
+        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false, connectedGamePadName);
         if (PAD1_Latch > 0)
         {
             return;
@@ -305,7 +315,7 @@ void showSplashScreen()
             startFrame = frameCount;
         }
         DrawScreen(-1);
-        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false);
+        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false, connectedGamePadName);
         if (PAD1_Latch > 0 || (frameCount - startFrame) > 1000)
         {
              return;
@@ -338,7 +348,7 @@ void screenSaver()
     {
         frameCount = ProcessAfterFrameIsRendered(true);
         DrawScreen(-1);
-        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false);
+        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false, connectedGamePadName);
 
         if (PAD1_Latch > 0)
         {
@@ -360,7 +370,7 @@ void clearinput()
     {
         ProcessAfterFrameIsRendered(true);
         DrawScreen(-1);
-        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, true);
+        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, true, connectedGamePadName);
         if (PAD1_Latch == 0)
         {
             break;
@@ -436,7 +446,7 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
         selectedRomOrFolder = (romlister.Count() > 0) ? entries[index].Path : nullptr;
         errorInSavingRom = false;
         DrawScreen(selectedRow);
-        processinput(true,&PAD1_Latch, &PAD1_Latch2, &pdwSystem, false);
+        processinput(true,&PAD1_Latch, &PAD1_Latch2, &pdwSystem, false, connectedGamePadName);
 
         if (PAD1_Latch > 0 || pdwSystem > 0)
         {
