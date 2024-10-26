@@ -100,7 +100,7 @@ jobs:
                 files: |
                        releases/pico2_${{ env.APP_NAME }}AdaFruitDVISD.uf2
                        releases/pico2_${{ env.APP_NAME }}PimoroniDV.uf2
-                       PCB/pico_nesPCB_v2.0.zip      
+                       PCB/pico_nesPCB_v2.1.zip      
                 body_path: CHANGELOG.md
           
          
