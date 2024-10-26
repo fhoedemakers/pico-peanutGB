@@ -272,7 +272,8 @@ void __not_in_flash_func(processaudio)()
 
             // extract the left and right channel from the audio buffer
             uint32_t *p1 = &sample_buffer[sample_index];
-            int l = *p1 >> 16;;
+            int l = *p1 >> 16;
+            ;
             int r = *p1 & 0xFFFF;
             *p++ = {static_cast<short>(l), static_cast<short>(r)};
             sample_index++;
@@ -323,7 +324,7 @@ static DWORD prevOtherButtons[2]{};
 
 static int rapidFireMask[2]{};
 static int rapidFireCounter = 0;
-void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed)
+void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed, char *gamepadType = nullptr)
 {
     // pwdPad1 and pwdPad2 are only used in menu and are only set on first push
     *pdwPad1 = *pdwPad2 = *pdwSystem = 0;
@@ -343,6 +344,10 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
                 (gp.buttons & io::GamePadState::Button::START ? START : 0) | 0;
         if (i == 0)
         {
+            if (gamepadType)
+            {
+                strcpy(gamepadType, gp.GamePadName);
+            }
 #if NES_PIN_CLK != -1
             nespadbuttons = nespad_state;
 #endif
@@ -535,7 +540,7 @@ void __not_in_flash_func(process)()
     while (reset == false)
     {
         sample_index = 0;
-        processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false);
+        processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false, nullptr);
         ti1 = time_us();
         emu_run_frame();
         ti2 = time_us();
@@ -643,66 +648,56 @@ int main()
         fr = f_unlink("/START");
         if (fr == FR_NO_FILE)
         {
-            printf("Start not pressed, flashing rom.\n ");
-            // Allocate buffer for flashing. Borrow emulator memory for this.
-            size_t bufsize = 0x2000;
+            printf("Start not pressed, flashing rom.\n");
+
+            size_t bufsize = 0x1000; // Write 4k at a time, larger sizes will increases the risk of making XInput unresponsive. (Still happens sometimes)
             BYTE *buffer = (BYTE *)malloc(bufsize);
 
             auto ofs = GB_FILE_ADDR - XIP_BASE;
             printf("write %s rom to flash %x\n", selectedRom, ofs);
+            UINT totalBytes = 0;
             fr = f_open(&fil, selectedRom, FA_READ);
-
+#if LED_GPIO_PIN != -1
+            bool onOff = true;
+#endif
             UINT bytesRead;
             if (fr == FR_OK)
             {
-                // filesize already known.
-                if ((fileSize / 512) & 1)
+                for (;;)
                 {
-                    printf("Skipping header\n");
-                    fr = f_lseek(&fil, 512);
-                    if (fr != FR_OK)
+                    fr = f_read(&fil, buffer, bufsize, &bytesRead);
+                    if (fr == FR_OK)
                     {
-                        snprintf(ErrorMessage, 40, "Error skipping header: %d", fr);
-                        printf("%s\n", ErrorMessage);
-                        selectedRom[0] = 0;
-                    }
-                }
-                if (fr == FR_OK)
-                {
-
-                    for (;;)
-                    {
-                        fr = f_read(&fil, buffer, bufsize, &bytesRead);
-                        if (fr == FR_OK)
+                        if (bytesRead == 0)
                         {
-                            if (bytesRead == 0)
-                            {
-                                break;
-                            }
-                            printf("Flashing %d bytes to flash address %x\n", bytesRead, ofs);
-                            printf("  -> Erasing...");
-
-                            // Disable interupts, erase, flash and enable interrupts
-                            uint32_t ints = save_and_disable_interrupts();
-                            flash_range_erase(ofs, bufsize);
-                            printf("\n  -> Flashing...");
-                            flash_range_program(ofs, buffer, bufsize);
-                            restore_interrupts(ints);
-                            //
-
-                            printf("\n");
-                            ofs += bufsize;
-                        }
-                        else
-                        {
-                            snprintf(ErrorMessage, 40, "Error reading rom: %d", fr);
-                            printf("Error reading rom: %d\n", fr);
-                            selectedRom[0] = 0;
                             break;
                         }
+
+#if LED_GPIO_PIN != -1
+                        gpio_put(LED_GPIO_PIN, onOff);
+                        onOff = !onOff;
+#endif
+                        // Disable interupts, erase, flash and enable interrupts
+                        uint32_t ints = save_and_disable_interrupts();
+                        flash_range_erase(ofs, bufsize);
+                        flash_range_program(ofs, buffer, bufsize);
+                        restore_interrupts(ints);
+
+                        ofs += bufsize;
+                        totalBytes += bytesRead;
+                        // keep the usb stack running
+                        tuh_task();
+                    }
+                    else
+                    {
+                        snprintf(ErrorMessage, 40, "Error reading rom: %d", fr);
+                        printf("Error reading rom: %d\n", fr);
+                        selectedRom[0] = 0;
+                        break;
                     }
                 }
                 f_close(&fil);
+                printf("Wrote %d bytes to flash\n", totalBytes);
             }
             else
             {
@@ -753,10 +748,10 @@ int main()
     wiipad_begin();
 #endif
     // 空サンプル詰めとく
-    dvi_->getAudioRingBuffer().advanceWritePointer(255);  // increased from 128 to 255 to make audio work.
+    dvi_->getAudioRingBuffer().advanceWritePointer(255); // increased from 128 to 255 to make audio work.
 
     multicore_launch_core1(core1_main);
-    
+
     while (true)
     {
         if (strlen(selectedRom) == 0 || reset == true)
@@ -772,12 +767,12 @@ int main()
         printf("Now playing: %s\n", selectedRom);
 
         printf("Initializing Game Boy Emulator\n");
-        uint8_t *rom = reinterpret_cast<unsigned char *>(GB_FILE_ADDR);        
+        uint8_t *rom = reinterpret_cast<unsigned char *>(GB_FILE_ADDR);
         if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage))
         {
             process();
             stopemulation(romName, GAMESAVEDIR);
-        } 
+        }
         selectedRom[0] = 0;
     }
     return 0;

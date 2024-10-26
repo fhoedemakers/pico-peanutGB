@@ -25,8 +25,8 @@
 #define SCREEN_COLS 32
 #define SCREEN_ROWS 29
 
-#define STARTROW 2
-#define ENDROW 25
+#define STARTROW 3
+#define ENDROW 24
 #define PAGESIZE (ENDROW - STARTROW + 1)
 
 #define VISIBLEPATHSIZE (SCREEN_COLS - 3)
@@ -34,6 +34,8 @@
 extern util::ExclusiveProc exclProc_;
 extern std::unique_ptr<dvi::DVI> dvi_;
 void screenMode(int incr);
+
+static char connectedGamePadName[sizeof(io::GamePadState::GamePadName)];
 
 #define CBLACK 0
 #define CWHITE 0x3f
@@ -158,6 +160,14 @@ static void putText(int x, int y, const char *text, int fgcolor, int bgcolor)
 
 void DrawScreen(int selectedRow)
 {
+    const char *spaces = "                   ";
+    char tmpstr[sizeof(connectedGamePadName) + 4];
+    if (selectedRow != -1)
+    {
+        putText(SCREEN_COLS / 2 - strlen(spaces) / 2, SCREEN_ROWS - 1, spaces, bgcolor, bgcolor);
+        snprintf(tmpstr,sizeof(tmpstr), "- %s -", connectedGamePadName[0] != 0 ? connectedGamePadName : "No USB GamePad");
+        putText(SCREEN_COLS / 2 - strlen(tmpstr) / 2, SCREEN_ROWS - 1, tmpstr, CLIGHTBLUE, CWHITE);
+    }
     for (auto line = 4; line < 236; line++)
     {
         drawline(line, selectedRow);
@@ -177,11 +187,24 @@ void ClearScreen(charCell *screenBuffer, int color)
 void displayRoms(Frens::RomLister romlister, int startIndex)
 {
     char buffer[ROMLISTER_MAXPATH + 4];
+    char s[SCREEN_COLS + 1];
     auto y = STARTROW;
     auto entries = romlister.GetEntries();
     ClearScreen(screenBuffer, bgcolor);
-    putText(1, 0, "Choose a rom to play:", fgcolor, bgcolor);
-    putText(1, SCREEN_ROWS - 1, "A: Select, B: Back", fgcolor, bgcolor);
+    strcpy(s, "- Pico-PeanutGB -");
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 0, s, fgcolor, bgcolor);  
+    strcpy(s, "Choose a rom to play:");
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 1, s, fgcolor, bgcolor);
+    for (int i = 1; i < SCREEN_COLS - 1; i++)
+    {
+        putText(i, STARTROW - 1, "-", fgcolor, bgcolor);
+    }
+    for (int i = 1; i < SCREEN_COLS - 1; i++)
+    {
+        putText(i, ENDROW + 1, "-", fgcolor, bgcolor);
+    }
+    strcpy(s, "A Select, B Back");
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, ENDROW + 2, s, fgcolor, bgcolor);
     putText(SCREEN_COLS - strlen(SWVERSION), SCREEN_ROWS - 1,SWVERSION, fgcolor, bgcolor);
     for (auto index = startIndex; index < romlister.Count(); index++)
     {
@@ -190,11 +213,11 @@ void displayRoms(Frens::RomLister romlister, int startIndex)
             auto info = entries[index];
             if (info.IsDirectory)
             {
-                snprintf(buffer, sizeof(buffer), "D %s", info.Path);
+                snprintf(buffer, SCREEN_COLS - 1, "D %s", info.Path);
             }
             else
             {
-                snprintf(buffer, sizeof(buffer), "R %s", info.Path);
+                snprintf(buffer, SCREEN_COLS - 1, "R %s", info.Path);
             }
 
             putText(1, y, buffer, fgcolor, bgcolor);
@@ -226,7 +249,7 @@ void DisplayEmulatorErrorMessage(char *error)
     {
         auto frameCount = ProcessAfterFrameIsRendered(true);
         DrawScreen(-1);
-        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false);
+        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false, connectedGamePadName);
         if (PAD1_Latch > 0)
         {
             return;
@@ -237,7 +260,7 @@ void DisplayEmulatorErrorMessage(char *error)
 void showSplashScreen()
 {
     DWORD PAD1_Latch, PAD1_Latch2, pdwSystem;
-    char s[SCREEN_COLS];
+    char s[SCREEN_COLS + 1];
     ClearScreen(screenBuffer, bgcolor);
 
     strcpy(s, "PicoPeanutGB");
@@ -248,40 +271,41 @@ void showSplashScreen()
     // putText((SCREEN_COLS / 2 - (strlen(s)) / 2) + 5, 2, "S", CBLUE, bgcolor);
     // putText((SCREEN_COLS / 2 - (strlen(s)) / 2) + 6, 2, "+", fgcolor, bgcolor);
 
-    strcpy(s, "Game Boy emulator for RP2040");
+    strcpy(s, "Game Boy emulator for RP2350");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 4, s, fgcolor, bgcolor);
    
-    strcpy(s, "Emulator");
+    strcpy(s, "Based on");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 6, s, fgcolor, bgcolor);
-    strcpy(s, "@jay_kumogata");
+    strcpy(s, "https://github.com/");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 7, s, CLIGHTBLUE, bgcolor);
-
+    strcpy(s, "deltabeard/Peanut-GB");
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 8, s, CLIGHTBLUE, bgcolor);
     strcpy(s, "Pico Port");
-    putText(SCREEN_COLS / 2 - strlen(s) / 2, 9, s, fgcolor, bgcolor);
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 10, s, fgcolor, bgcolor);
     strcpy(s, "@frenskefrens");
-    putText(SCREEN_COLS / 2 - strlen(s) / 2, 10, s, CLIGHTBLUE, bgcolor);
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 11, s, CLIGHTBLUE, bgcolor);
 
     strcpy(s, "DVI Support");
-    putText(SCREEN_COLS / 2 - strlen(s) / 2, 12, s, fgcolor, bgcolor);
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 13, s, fgcolor, bgcolor);
     strcpy(s, "@shuichi_takano");
-    putText(SCREEN_COLS / 2 - strlen(s) / 2, 13, s, CLIGHTBLUE, bgcolor);
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 14, s, CLIGHTBLUE, bgcolor);
 
     strcpy(s, "(S)NES/WII controller support");
-    putText(SCREEN_COLS / 2 - strlen(s) / 2, 15, s, fgcolor, bgcolor);
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 16, s, fgcolor, bgcolor);
 
     strcpy(s, "@PaintYourDragon @adafruit");
-    putText(SCREEN_COLS / 2 - strlen(s) / 2, 16, s, CLIGHTBLUE, bgcolor);
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 17, s, CLIGHTBLUE, bgcolor);
 
     strcpy(s, "PCB Design");
-    putText(SCREEN_COLS / 2 - strlen(s) / 2, 18, s, fgcolor, bgcolor);
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 19, s, fgcolor, bgcolor);
 
     strcpy(s, "@johnedgarpark");
-    putText(SCREEN_COLS / 2 - strlen(s) / 2, 19, s, CLIGHTBLUE, bgcolor);
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 20, s, CLIGHTBLUE, bgcolor);
 
     strcpy(s, "https://github.com/");
-    putText(SCREEN_COLS / 2 - strlen(s) / 2, 21, s, CLIGHTBLUE, bgcolor);
-    strcpy(s, "fhoedemakers/Pico-PeanutGB");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 22, s, CLIGHTBLUE, bgcolor);
+    strcpy(s, "fhoedemakers/Pico-PeanutGB");
+    putText(SCREEN_COLS / 2 - strlen(s) / 2, 23, s, CLIGHTBLUE, bgcolor);
     int startFrame = -1;
     while (true)
     {
@@ -291,7 +315,7 @@ void showSplashScreen()
             startFrame = frameCount;
         }
         DrawScreen(-1);
-        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false);
+        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false, connectedGamePadName);
         if (PAD1_Latch > 0 || (frameCount - startFrame) > 1000)
         {
              return;
@@ -324,7 +348,7 @@ void screenSaver()
     {
         frameCount = ProcessAfterFrameIsRendered(true);
         DrawScreen(-1);
-        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false);
+        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, false, connectedGamePadName);
 
         if (PAD1_Latch > 0)
         {
@@ -346,7 +370,7 @@ void clearinput()
     {
         ProcessAfterFrameIsRendered(true);
         DrawScreen(-1);
-        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, true);
+        processinput(true, &PAD1_Latch, &PAD1_Latch2, &pdwSystem, true, connectedGamePadName);
         if (PAD1_Latch == 0)
         {
             break;
@@ -422,7 +446,7 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
         selectedRomOrFolder = (romlister.Count() > 0) ? entries[index].Path : nullptr;
         errorInSavingRom = false;
         DrawScreen(selectedRow);
-        processinput(true,&PAD1_Latch, &PAD1_Latch2, &pdwSystem, false);
+        processinput(true,&PAD1_Latch, &PAD1_Latch2, &pdwSystem, false, connectedGamePadName);
 
         if (PAD1_Latch > 0 || pdwSystem > 0)
         {
@@ -430,6 +454,7 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
             // reset horizontal scroll of highlighted row
             horzontalScrollIndex = 0;
             putText(3, selectedRow, selectedRomOrFolder, fgcolor, bgcolor);
+            putText(SCREEN_COLS - 1, selectedRow, " ", bgcolor, bgcolor);
 
             // if ((PAD1_Latch & Y) == Y)
             // {
@@ -613,7 +638,7 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
         {
             if ((frameCount % 30) == 0)
             {
-                if (strlen(selectedRomOrFolder + horzontalScrollIndex) > VISIBLEPATHSIZE)
+                if (strlen(selectedRomOrFolder + horzontalScrollIndex) >= VISIBLEPATHSIZE)
                 {
                     horzontalScrollIndex++;
                 }
@@ -622,6 +647,7 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal, bool reset)
                     horzontalScrollIndex = 0;
                 }
                 putText(3, selectedRow, selectedRomOrFolder + horzontalScrollIndex, fgcolor, bgcolor);
+                putText(SCREEN_COLS - 1, selectedRow, " ", bgcolor, bgcolor);
             }
         }
         if (totalFrames == -1)
