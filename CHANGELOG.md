@@ -50,7 +50,7 @@ For the latest two player PCB 2.0, you need:
 
 XInput driver: https://github.com/Ryzee119/tusb_XInput by [Ryzee119](https://github.com/Ryzee119) When building from source, make sure you do a **git submodule update --init** from within the source folder to get the XInput driver.
 
-For more details, see the Pico-InfoNesPlus [README](https://github.com/fhoedemakers/pico-infonesPlus/blob/main/README.md#gamecontroller-support) and [troubleshooting](https://github.com/fhoedemakers/pico-infonesPlus/blob/main/README.md#troubleshooting-usb-controllers) section
+For more details, see the Pico-InfonesPlus [README](https://github.com/fhoedemakers/pico-infonesPlus/blob/main/README.md#gamecontroller-support) and [troubleshooting](https://github.com/fhoedemakers/pico-infonesPlus/blob/main/README.md#troubleshooting-usb-controllers) section
 
 ## v0.1
 
