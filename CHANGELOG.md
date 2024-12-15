@@ -2,14 +2,16 @@
 
 # General Info
 
-Only binaries for Pico 2 are available. The emulator is too slow on the original Pico or other RP2040 based boards.
+Only binaries for Pico2 arm-s and Pico2 Risc-V are available. Risc-v binaries start with pico2_riscv_. The emulator is too slow for Pico (rp2340) based boards.
 
 - pico2_PicoPeanutGBPimoroniDV.uf2 : For the Pimoroni DV Deno Base with Pico2.
-- pico2_PicoPeanutGBAdaFruitDVISD.uf2 : For the breadboard or PCN variant with Pico 2
-- pico_nesPCB_v2.1.zip: PCB Design. For more info see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus#pcb-with-raspberry-pi-pico-or-pico-2).
+- pico2_PicoPeanutGBAdaFruitDVISD.uf2 : For the breadboard or PCB variant with Pico 2
+- pico_nesPCB_v2.1.zip: PCB Design.
+
+For more info see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus#pcb-with-raspberry-pi-pico-or-pico-2).
 
 >[!NOTE]
->There is no specific build for the Pico 2 w because of issues with the display when blinking the led. Use the pico_2_ binaries instead. There is no blinking led on the Pico 2 w.
+>There is no specific build for the Pico2 w because of issues with the display when blinking the led. Use the pico_2_ binaries instead. There is no blinking led on the Pico 2 w.
 
 > [!NOTE]
 The emulator is still in development and may have performance issues, causing some games to not run at full speed and red screen flicker. It is not cycle accurate, feature-complete, fully tested, or entirely stable. Maybe some games will not run at all.
@@ -46,7 +48,7 @@ Because of the shared code, the following features are now available in Pico-SMS
   - Select + Left/Right changes the background color.
   - Select + A saves the colors. Screen will flicker when saved.
   - Select + B resets the colors to default. (Black on white)
-  
+
 ## v0.2
 
 ### Features
