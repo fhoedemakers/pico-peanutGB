@@ -23,11 +23,12 @@ fi
 # do	
 # 	./bld.sh -c $HWCONFIG
 # done
-# build for Pico 2
+# build for Pico 2 arm and risc-v
 HWCONFIGS="1 2"
 for HWCONFIG in $HWCONFIGS
 do
 	./bld.sh -c $HWCONFIG -2
+	./bld.sh -c $HWCONFIG -r
 done
 if [ -z "$(ls -A releases)" ]; then
 	echo "No UF2 files found in releases folder"

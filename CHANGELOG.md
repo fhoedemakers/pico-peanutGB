@@ -2,11 +2,16 @@
 
 # General Info
 
-Only binaries for Pico 2 are available. The emulator is too slow on the original Pico or other RP2040 based boards.
+Only binaries for Pico2 arm-s and Pico2 Risc-V are available. Risc-v binaries start with pico2_riscv_. The emulator is too slow for Pico (rp2340) based boards.
 
 - pico2_PicoPeanutGBPimoroniDV.uf2 : For the Pimoroni DV Deno Base with Pico2.
-- pico2_PicoPeanutGBAdaFruitDVISD.uf2 : For the breadboard or PCN variant with Pico 2
-- pico_nesPCB_v2.1.zip: PCB Design. For more info see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus#pcb-with-raspberry-pi-pico-or-pico-2).
+- pico2_PicoPeanutGBAdaFruitDVISD.uf2 : For the breadboard or PCB variant with Pico 2
+- pico_nesPCB_v2.1.zip: PCB Design.
+
+For more info see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus#pcb-with-raspberry-pi-pico-or-pico-2).
+
+>[!NOTE]
+>There is no specific build for the Pico2 w because of issues with the display when blinking the led. Use the pico_2_ binaries instead. There is no blinking led on the Pico 2 w.
 
 > [!NOTE]
 The emulator is still in development and may have performance issues, causing some games to not run at full speed and red screen flicker. It is not cycle accurate, feature-complete, fully tested, or entirely stable. Maybe some games will not run at all.
@@ -26,6 +31,23 @@ For the latest two player PCB 2.0, you need:
 
 
 # Release notes
+
+## v0.3
+
+### Technical changes
+
+- Lots of code is now moved to git module pico_shared. This is code that can be shared between other RP2040/RP2350 emulators. This includes the menu system, the SD-card handling, the display handling. Also the code for controller input (NES, Wii-Classic, USB, keyboard) is moved to this module. When building from source, make sure you do a **git submodule update --init** from within the source folder to get the pico_shared module and all the other modules.
+
+### Features
+
+Because of the shared code, the following features are now available in Pico-SMSPlus:
+
+- Some settings are now saved to SD card. This includes the selected screen mode, chosen with Select+Up or Select+Down  and the last chosen menu selection. Settings are written to /settings.dat on the SD-card. When screen mode is changed, this will be automatically saved. The causes some red flicker due to the delay it causes.
+- The colors in the menu can be changed and saved:
+  - Select + Up/Down changes the foreground color.
+  - Select + Left/Right changes the background color.
+  - Select + A saves the colors. Screen will flicker when saved.
+  - Select + B resets the colors to default. (Black on white)
 
 ## v0.2
 

@@ -23,6 +23,7 @@ typedef unsigned char  BYTE;
 #endif /* !NULL */
 extern uint16_t *audio_stream;
 extern int sample_size;
+extern uint8_t *GBaddress; // pointer to the GB ROM file
 #ifdef __cplusplus
 extern "C" {
 #endif
