@@ -19,6 +19,8 @@ static struct priv_t priv;
 enum gb_init_error_e ret;
 static struct gb_s gb;
 
+uint8_t *GBaddress; // pointer to the GB ROM file
+
 #if ENABLE_SOUND
 #define AUDIO_BUFFER_SIZE (AUDIO_SAMPLES * sizeof(u_int32_t))
 uint16_t *audio_stream;
@@ -58,13 +60,14 @@ void stripextensionfromfilename(char *filename)
  * Returns a byte from the ROM file at the given address. Not used. Emulator reads directly from GBaddress.
  */
 
-uint8_t *address = (uint8_t *)GB_FILE_ADDR;
-uint8_t *GBaddress = (uint8_t *)GB_FILE_ADDR;
+
+//uint8_t *address = (uint8_t *)GB_FILE_ADDR;
+ 
 uint8_t __not_in_flash_func(gb_rom_read)(struct gb_s *gb, const uint_fast32_t addr)
 {
     // const struct priv_t * const p = gb->direct.priv;
     // const struct priv_t *const p = static_cast<const struct priv_t *>(gb->direct.priv);
-    return address[addr];
+    return GBaddress[addr];
 }
 
 /**
@@ -196,7 +199,7 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
 {
     
     ErrorMessage[0] = 0;
-    priv.rom = rom;
+    priv.rom = GBaddress = rom;
     ret = gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
                   &gb_cart_ram_write, &gb_error, &priv);
     

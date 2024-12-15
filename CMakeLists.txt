@@ -18,13 +18,13 @@ project(${projectname} C CXX ASM)
 pico_sdk_init()
 
 if (NOT HW_CONFIG)
-    set(HW_CONFIG 1 CACHE STRING "Select the hardware configuration for your board")       
+    set(HW_CONFIG 2 CACHE STRING "Select the hardware configuration for your board")       
 endif()
 if ( HW_CONFIG EQUAL 1 )
 	# This default Config is for Pimoroni Pico DV Demo Base
 	set(DVICONFIG "dviConfig_PimoroniDemoDVSock" CACHE STRING
 	  "Select a default pin configuration from common_dvi_pin_configs.h")
-    set(LED_GPIO_PIN "25" CACHE STRING "Select the GPIO pin for LED")
+    set(LED_GPIO_PIN "0" CACHE STRING "Select the GPIO pin for LED")
 	set(SD_CS "22" CACHE STRING "Specify the Chip Select GPIO pin for the SD card")
 	set(SD_SCK "5" CACHE STRING "Specify de Clock GPIO pin for the SD card")
 	set(SD_MOSI "18" CACHE STRING "Select the Master Out Slave In GPIO pin for the SD card")
@@ -32,6 +32,11 @@ if ( HW_CONFIG EQUAL 1 )
 	set(NES_CLK "14" CACHE STRING "Select the Clock GPIO pin for NES controller")
 	set(NES_DATA "15" CACHE STRING "Select the Data GPIO pin for NES controller")
 	set(NES_LAT "16" CACHE STRING "Select the Latch GPIO pin for NES controller")
+    set(NES_PIO "pio0" CACHE STRING "Select the PIO for NES controller")
+    set(NES_CLK_1 "1" CACHE STRING "Select the Clock GPIO pin for second NES controller")
+	set(NES_DATA_1 "21" CACHE STRING "Select the Data GPIO pin for second NES controller")
+	set(NES_LAT_1 "20" CACHE STRING "Select the Latch GPIO pin for second NES controller")
+    set(NES_PIO_1 "pio1" CACHE STRING "Select the PIO for second NES controller")
 	set(WII_SDA "-1" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
 	set(WII_SCL "-1" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
 elseif ( HW_CONFIG EQUAL 2 )
@@ -41,7 +46,7 @@ elseif ( HW_CONFIG EQUAL 2 )
 	# Adafruit DVI Breakout For HDMI Source Devices https://www.adafruit.com/product/4984
 	set(DVICONFIG "dviConfig_PicoDVISock" CACHE STRING
 	  "Select a default pin configuration from common_dvi_pin_configs.h")
-    set(LED_GPIO_PIN "25" CACHE STRING "Select the GPIO pin for LED")
+    set(LED_GPIO_PIN "0" CACHE STRING "Select the GPIO pin for LED")
 	# Adafruit Micro-SD breakout board+ https://www.adafruit.com/product/254 
 	set(SD_CS "5" CACHE STRING "Specify the Chip Select GPIO pin for the SD card")
 	set(SD_SCK "2" CACHE STRING "Specify de Clock GPIO pin for the SD card")
@@ -50,6 +55,11 @@ elseif ( HW_CONFIG EQUAL 2 )
 	set(NES_CLK "6" CACHE STRING "Select the Clock GPIO pin for NES controller")
 	set(NES_DATA "7" CACHE STRING "Select the Data GPIO pin for NES controller")
 	set(NES_LAT "8" CACHE STRING "Select the Latch GPIO pin for NES controller")
+    set(NES_PIO "pio0" CACHE STRING "Select the PIO for NES controller")
+    set(NES_CLK_1 "9" CACHE STRING "Select the Clock GPIO pin for second NES controller")
+	set(NES_DATA_1 "10" CACHE STRING "Select the Data GPIO pin for second NES controller")
+	set(NES_LAT_1 "11" CACHE STRING "Select the Latch GPIO pin for second NES controller")
+    set(NES_PIO_1 "pio1" CACHE STRING "Select the PIO for second NES controller")
 	set(WII_SDA "-1" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
 	set(WII_SCL "-1" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
 elseif ( HW_CONFIG EQUAL 3 )
@@ -66,6 +76,11 @@ elseif ( HW_CONFIG EQUAL 3 )
 	set(NES_CLK "5" CACHE STRING "Select the Clock GPIO pin for NES controller")
 	set(NES_DATA "6" CACHE STRING "Select the Data GPIO pin for NES controller")
 	set(NES_LAT "9" CACHE STRING "Select the Latch GPIO pin for NES controller")
+    set(NES_PIO "pio0" CACHE STRING "Select the PIO for NES controller")
+    set(NES_CLK_1 "26" CACHE STRING "Select the Clock GPIO pin for second NES controller")
+	set(NES_DATA_1 "28" CACHE STRING "Select the Data GPIO pin for second NES controller")
+	set(NES_LAT_1 "27" CACHE STRING "Select the Latch GPIO pin for second NES controller")
+    set(NES_PIO_1 "pio1" CACHE STRING "Select the PIO for second NES controller")
 	set(WII_SDA "2" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
 	set(WII_SCL "3" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
 elseif ( HW_CONFIG EQUAL 4 )
@@ -82,6 +97,11 @@ elseif ( HW_CONFIG EQUAL 4 )
     set(NES_CLK "5" CACHE STRING "Select the Clock GPIO pin for NES controller")
     set(NES_DATA "6" CACHE STRING "Select the Data GPIO pin for NES controller")
     set(NES_LAT "9" CACHE STRING "Select the Latch GPIO pin for NES controller")
+    set(NES_PIO "pio0" CACHE STRING "Select the PIO for NES controller")
+    set(NES_CLK_1 "10" CACHE STRING "Select the Clock GPIO pin for second NES controller")
+	set(NES_DATA_1 "12" CACHE STRING "Select the Data GPIO pin for second NES controller")
+	set(NES_LAT_1 "11" CACHE STRING "Select the Latch GPIO pin for second NES controller")
+    set(NES_PIO_1 "pio1" CACHE STRING "Select the PIO for second NES controller")
     set(WII_SDA "-1" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
     set(WII_SCL "-1" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
 endif ( )
@@ -92,22 +112,21 @@ message("SD card CS          : ${SD_CS}")
 message("SD card SCK         : ${SD_SCK}")
 message("SD card MOSI        : ${SD_MOSI}")
 message("SD card MISO        : ${SD_MISO}")
-message("NES controller CLK  : ${NES_CLK}")
-message("NES controller DATA : ${NES_DATA}")
-message("NES controller LAT  : ${NES_LAT}")
+message("NES controller 0 CLK  : ${NES_CLK}")
+message("NES controller 0 DATA : ${NES_DATA}")
+message("NES controller 0 LAT  : ${NES_LAT}")
+message("NES controller 0 PIO  : ${NES_PIO}")
+message("NES controller 1 CLK  : ${NES_CLK_1}")
+message("NES controller 1 DATA : ${NES_DATA_1}")
+message("NES controller 1 LAT  : ${NES_LAT_1}")
+message("NES controller 1 PIO  : ${NES_PIO_1}")
 message("Wii controller SDA  : ${WII_SDA}")
 message("Wii controller SCL  : ${WII_SCL}")
 message("LED pin             : ${LED_GPIO_PIN}")
 
 add_executable(${projectname}
     main.cpp
-    hid_app.cpp
-    gamepad.cpp
-    nespad.cpp
-    wiipad.cpp
-    menu.cpp 
-    RomLister.cpp
-    FrensHelpers.cpp
+    splash.cpp
     gb.c
     minigb_apu.c
 )
@@ -129,9 +148,9 @@ else()
     family_configure_target(${projectname} "" )
 endif()
 # add_compile_definitions(CFG_TUSB_DEBUG=0)
-set(GB_FLAGS -DGB_FILE_ADDR=0x10080000 -DNDEBUG)
+# set(GB_FLAGS -DGB_FILE_ADDR=0x10080000 -DNDEBUG)
 target_compile_definitions(${projectname} PUBLIC 
-    ${GB_FLAGS}
+   # ${GB_FLAGS}
     DVICONFIG=${DVICONFIG}
     SDCARD_PIN_SPI0_CS=${SD_CS}
     SDCARD_PIN_SPI0_SCK=${SD_SCK}
@@ -142,13 +161,17 @@ target_compile_definitions(${projectname} PUBLIC
     NES_PIN_CLK=${NES_CLK}
     NES_PIN_DATA=${NES_DATA}
     NES_PIN_LAT=${NES_LAT}
+    NES_PIO=${NES_PIO}
+    NES_PIN_CLK_1=${NES_CLK_1}
+    NES_PIN_DATA_1=${NES_DATA_1}
+    NES_PIN_LAT_1=${NES_LAT_1}
+    NES_PIO_1=${NES_PIO_1}
     WII_PIN_SDA=${WII_SDA}
     WII_PIN_SCL=${WII_SCL}
     LED_GPIO_PIN=${LED_GPIO_PIN}
     ENABLE_SOUND=1)
     
-target_link_libraries(${projectname}
-PRIVATE
+target_link_libraries(${projectname} PRIVATE
     pico_stdlib
     pico_multicore
     hardware_dma
@@ -159,24 +182,30 @@ PRIVATE
     hardware_clocks
     hardware_pwm
     hardware_flash
-    fatfs
-    sdcard
-    tinyusb_host
     dvi
     util
-    xinput_host
+    tinyusb_host 
+    pico_shared  
+    xinput_host 
 )
+if(PICO_BOARD STREQUAL "pico_w" OR PICO_BOARD STREQUAL "pico2_w")
+    # Attention pico2_w in arm-s or risv-s mode causes the led blinking to generate red screen flicker and
+    # multiple "[CYW43] do_ioctl(2, 263, 16): timeout" messages to the console.
+    # pico_w does not have this issue.
+    target_link_libraries(${projectname} PRIVATE pico_cyw43_arch_none)
+endif()
 
 target_include_directories(${projectname}
-PRIVATE
+    PRIVATE
     pico_lib
-    InfoGB
+    pico_shared
+    tusb_xinput
     .
 )
-add_subdirectory(drivers/fatfs)
-add_subdirectory(drivers/sdcard)
+
 add_subdirectory(pico_lib/dvi)
 add_subdirectory(pico_lib/util)
+add_subdirectory(pico_shared)
 add_subdirectory(tusb_xinput xinput_host)
 pico_add_extra_outputs(${projectname})
 
