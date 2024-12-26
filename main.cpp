@@ -353,10 +353,6 @@ int main()
     {
         if (strlen(selectedRom) == 0 || reset == true)
         {
-            // reset margin to give menu more screen space
-            dvi_->getBlankSettings().top = 4 * 2;
-            dvi_->getBlankSettings().bottom = 4 * 2;
-            scaleMode8_7_ = Frens::applyScreenMode(ScreenMode::NOSCANLINE_8_7);
             menu("Pico-Peanut-GB", ErrorMessage, isFatalError, showSplash, ".gb .gbc"); // never returns, but reboots upon selecting a game
         }
         reset = false;
