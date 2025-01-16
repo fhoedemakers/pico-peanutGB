@@ -33,7 +33,7 @@ For the latest two player PCB 2.0, you need:
 # v0.5 Release notes
 
 ## Features
-- Enabe fastscrolling in the menu, by holding up/down/left/right for 500 milliseconds, repeat delay is 40 milliseconds.
+- Enable fastscrolling in the menu, by holding up/down/left/right for 500 milliseconds, repeat delay is 40 milliseconds.
 - bld.sh mow uses the amount of cores available on the system to speed up the build process. An optional -p flag can be used to specify the amount of cores to use.
 
 ## Fixes
