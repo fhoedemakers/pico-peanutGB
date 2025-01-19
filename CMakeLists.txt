@@ -169,7 +169,8 @@ target_compile_definitions(${projectname} PUBLIC
     WII_PIN_SDA=${WII_SDA}
     WII_PIN_SCL=${WII_SCL}
     LED_GPIO_PIN=${LED_GPIO_PIN}
-    ENABLE_SOUND=1)
+    ENABLE_SOUND=1
+    CPUKFREQKHZ=266000)
     
 target_link_libraries(${projectname} PRIVATE
     pico_stdlib
