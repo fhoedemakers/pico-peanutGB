@@ -24,7 +24,8 @@
 #include "gb.h"
 
 #ifndef CPUKFREQKHZ
-#define CPUKFREQKHZ 266000
+//#define CPUKFREQKHZ 266000
+#define CPUKFREQKHZ 252000
 #endif
 
 char *romName;
