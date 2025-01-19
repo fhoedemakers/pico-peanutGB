@@ -23,6 +23,10 @@
 #include "mytypes.h"
 #include "gb.h"
 
+#ifndef CPUKFREQKHZ
+#define CPUKFREQKHZ 266000
+#endif
+
 char *romName;
 
 bool isFatalError = false;
@@ -51,7 +55,7 @@ bool reset = false;
 
 namespace
 {
-    constexpr uint32_t CPUFreqKHz = 266000; // 252000;
+    constexpr uint32_t CPUFreqKHz = CPUKFREQKHZ; // 252000;
      dvi::DVI::LineBuffer *currentLineBuffer_{};
 }
 
