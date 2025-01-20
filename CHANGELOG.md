@@ -35,6 +35,7 @@ For the latest two player PCB 2.0, you need:
 ## Features
 - Enable fastscrolling in the menu, by holding up/down/left/right for 500 milliseconds, repeat delay is 40 milliseconds.
 - bld.sh mow uses the amount of cores available on the system to speed up the build process. An optional -p flag can be used to specify the amount of cores to use.
+- uses latest version of pico_shared and pico_lib submodules.
 
 ## Fixes
 - Temporary Rollback NesPad code for the WaveShare RP2040-PiZero only. Other configurations are not affected.
