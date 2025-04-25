@@ -2,11 +2,8 @@
 
 # General Info
 
-Only binaries for Pico2 arm-s and Pico2 Risc-V are available. Risc-v binaries start with pico2_riscv_. The emulator is too slow for Pico (rp2340) based boards.
+Only binaries for Pico2 (w) arm-s and Pico2 Risc-V are available. Risc-v binaries start with pico2_riscv_. or pico2_w_riscv_ The emulator is too slow for Pico (rp2340) based boards.
 
-- pico2_PicoPeanutGBPimoroniDV.uf2 : For the Pimoroni DV Deno Base with Pico2.
-- pico2_PicoPeanutGBAdaFruitDVISD.uf2 : For the breadboard or PCB variant with Pico 2
-- pico_nesPCB_v2.1.zip: PCB Design.
 
 For more info see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus#pcb-with-raspberry-pi-pico-or-pico-2).
 
