@@ -2,7 +2,7 @@
 
 # General Info
 
-Only binaries for Pico2 (w) arm-s and Pico2 Risc-V are available. Risc-v binaries start with pico2_riscv_. or pico2_w_riscv_ The emulator is too slow for Pico (rp2340) based boards.
+Only binaries for Pico2 (w) arm-s and Pico2 (w) Risc-V are available. Risc-v binaries start with pico2_riscv_. or pico2_w_riscv_ The emulator is too slow for Pico (rp2340) based boards.
 
 
 For more info see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus#pcb-with-raspberry-pi-pico-or-pico-2).
