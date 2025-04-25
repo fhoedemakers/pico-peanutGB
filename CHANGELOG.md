@@ -10,9 +10,6 @@ Only binaries for Pico2 arm-s and Pico2 Risc-V are available. Risc-v binaries st
 
 For more info see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus#pcb-with-raspberry-pi-pico-or-pico-2).
 
->[!NOTE]
->There is no specific build for the Pico2 w because of issues with the display when blinking the led. Use the pico_2_ binaries instead. There is no blinking led on the Pico 2 w.
-
 > [!NOTE]
 The emulator is still in development and may have performance issues, causing some games to not run at full speed and red screen flicker. It is not cycle accurate, feature-complete, fully tested, or entirely stable. Maybe some games will not run at all.
 
@@ -30,15 +27,19 @@ For the latest two player PCB 2.0, you need:
 (*) in case you don't want to access the bootsel button on the Pico, you can choose Base_v2.0.stl
 
 
-# v0.5 Release notes
+# v0.6 Release notes
 
 ## Features
-- Enable fastscrolling in the menu, by holding up/down/left/right for 500 milliseconds, repeat delay is 40 milliseconds.
-- bld.sh mow uses the amount of cores available on the system to speed up the build process. An optional -p flag can be used to specify the amount of cores to use.
-- uses latest version of pico_shared and pico_lib submodules.
+- Releases now built with SDK 2.1.1
+- Support added for Adafruit Metro RP2350 board. See README for more info. No RISCV support yet.
+- Switched to SD card driver pico_fatfs https://github.com/elehobica/pico_fatfs. This is required for the Adafruit Metro RP2350. The Pimoroni Pico DV does not work with this updated version and still needs the old version. (see [https://github.com/elehobica/pico_fatfs/issues/7#issuecomment-2817953143](https://github.com/elehobica/pico_fatfs/issues/7#issuecomment-2817953143) ) Therefore, the old version is still included in the repository. (pico_shared/drivers/pio_fatfs) 
+    This is configured in CMakeLists.txt file by setting USE_OLD_SDDRIVER to 1.
+- Besides FAT32, SD cards can now also be formatted as exFAT.
+- Nes controller PIO code updated by [@ManCloud](https://github.com/ManCloud). This fixes the NES controller issues on the Waveshare RP2040 - PiZero board. [#8](https://github.com/fhoedemakers/pico_shared/issues/8)
 
 ## Fixes
-- Temporary Rollback NesPad code for the WaveShare RP2040-PiZero only. Other configurations are not affected.
-- Update time functions to return milliseconds and use uint64_t to return microseconds.
+- Fixed Pico 2 W: Led blinking causes screen flicker and ioctl timeouts [#2](https://github.com/fhoedemakers/pico_shared/issues/2). Solved with in SDK 2.1.1
+- WII classic controller: i2c bus instance (i2c0 / i2c1) not hardcoded anymore but configurable via CMakeLists.txt. 
+
 
 All changes are in the pico_shared submodule. When building from source, make sure you do a **git submodule update --init** from within the source folder to get the latest pico_shared module.
