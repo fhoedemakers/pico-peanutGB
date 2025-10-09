@@ -340,26 +340,41 @@ int main()
     romName = selectedRom;
     ErrorMessage[0] = selectedRom[0] = 0;
 
-    // Set voltage and clock frequency
-    vreg_set_voltage(VREG_VOLTAGE_1_20); // VREG_VOLTAGE_1_20);
-    sleep_ms(10);
-    set_sys_clock_khz(CPUFreqKHz, true);
+    Frens::setClocksAndStartStdio(CPUFreqKHz, VREG_VOLTAGE_1_30);
 
-    stdio_init_all();
-    printf("Starting DMG Gameboy program\n");
-    printf("CPU freq: %d\n", clock_get_hz(clk_sys));
-    printf("Starting Tinyusb subsystem\n");
-    tusb_init();
+    printf("==========================================================================================\n");
+    printf("Pico-PeanutGB %s\n", SWVERSION);
+    printf("Build date: %s\n", __DATE__);
+    printf("Build time: %s\n", __TIME__);
+    printf("CPU freq: %d kHz\n", clock_get_hz(clk_sys) / 1000);
+#if HSTX
+    printf("HSTX freq: %d kHz\n", clock_get_hz(clk_hstx) / 1000);
+#endif
+    printf("Stack size: %d bytes\n", PICO_STACK_SIZE);
+    printf("==========================================================================================\n");
+    printf("Starting up...\n");
 
-    isFatalError = !Frens::initAll(selectedRom, CPUFreqKHz, MARGINTOP, MARGINBOTTOM, 512);
+
+    isFatalError = !Frens::initAll(selectedRom, CPUFreqKHz, MARGINTOP, MARGINBOTTOM, 512, false, true);
+#if !HSTX
+    scaleMode8_7_ = Frens::applyScreenMode(settings.screenMode);
+#endif
 
     bool showSplash = true;
     while (true)
     {
         if (strlen(selectedRom) == 0 || reset == true)
         {
-            menu("Pico-Peanut-GB", ErrorMessage, isFatalError, showSplash, ".gb .gbc"); // never returns, but reboots upon selecting a game
+            menu("Pico-PeanutGB", ErrorMessage, isFatalError, showSplash, ".gb .gbc", selectedRom, "GB"); // never returns, but reboots upon selecting a game
         }
+#if !HSTX
+        if (settings.screenMode != ScreenMode::SCANLINE_1_1 && settings.screenMode != ScreenMode::NOSCANLINE_1_1)
+        {
+            settings.screenMode = ScreenMode::SCANLINE_1_1;
+            Frens::savesettings();
+        }
+        scaleMode8_7_ = Frens::applyScreenMode(settings.screenMode);
+#endif
         reset = false;
         printf("Now playing: %s\n", selectedRom);
 
