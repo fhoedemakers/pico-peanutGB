@@ -54,11 +54,13 @@ bool reset = false;
 #define NORENDER 0 // 0 is render frames in emulation loop
 #endif
 
-namespace
-{
-    constexpr uint32_t CPUFreqKHz = CPUKFREQKHZ; // 252000;
-     dvi::DVI::LineBuffer *currentLineBuffer_{};
-}
+
+constexpr uint32_t CPUFreqKHz = CPUKFREQKHZ; // 252000;
+#if !HSTX
+dvi::DVI::LineBuffer *currentLineBuffer_{};
+#else 
+WORD *currentLineBuffer_{};
+#endif
 
 int sample_index = 0;
 
@@ -66,7 +68,7 @@ void __not_in_flash_func(processaudio)()
 {
 
     int samples = 6; //  (739/144)
-
+#if !HSTX
     // the audio_buffer is in fact a 32 bit array.
     // the first 16 bits are the left channel, the next 16 bits are the right channel
     uint32_t *sample_buffer = (uint32_t *)audio_stream;
@@ -96,6 +98,7 @@ void __not_in_flash_func(processaudio)()
         ring.advanceWritePointer(n);
         samples -= n;
     }
+#endif
 }
 
 static DWORD prevButtons[2]{};
@@ -175,11 +178,15 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
             }
             if (pushed & UP)
             {
+#if !HSTX
                 Frens::screenMode(-1);
+#endif
             }
             else if (pushed & DOWN)
             {
+#if !HSTX
                 Frens::screenMode(+1);
+#endif
             }
         }
         prevButtons[i] = v;
@@ -200,7 +207,12 @@ int ProcessAfterFrameIsRendered(bool frommenu)
 #if NES_PIN_CLK != -1
     nespad_read_start();
 #endif
-    auto count = dvi_->getFrameCounter();
+    auto count =
+#if !HSTX
+        dvi_->getFrameCounter();
+#else
+        hstx_getframecounter();
+#endif
     auto onOff = hw_divider_s32_quotient_inlined(count, 60) & 1;
     Frens::blinkLed(onOff);
 #if NES_PIN_CLK != -1
@@ -229,9 +241,11 @@ WORD *__not_in_flash_func(dvi_getlinebuffer)()
     static WORD tmpbuffer[512];
     sbuffer = tmpbuffer;
 #else
+#if !HSTX
     auto b = dvi_->getLineBuffer();
     sbuffer = b->data() + (LEFTMARGIN);
     currentLineBuffer_ = b;
+#endif
 #endif
     return sbuffer;
 }
