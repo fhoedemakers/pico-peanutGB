@@ -1396,13 +1396,12 @@ static int compare_sprites(const void *in1, const void *in2)
 }
 #endif
 
+extern uint16_t *currentpalette;
 void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 {
 	uint8_t pixels[160] = {0};
-	WORD * buff = dvi_getlinebuffer();
-	uint16_t palette444[] = {
-        0xF7DE, 0x7BEF, 0x39E7, 0x0000,
-    };
+	WORD * buff = dvi_getlinebuffer(gb->hram_io[IO_LY]);
+	uint16_t *palette = currentpalette;
 	/* If LCD not initialised by front-end, don't render anything. */
 	if(gb->display.lcd_draw_line == NULL)
 		return;
@@ -1502,7 +1501,7 @@ void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 #if PEANUT_GB_12_COLOUR
 			pixels[disp_x] |= LCD_PALETTE_BG;
 #endif
-			buff[disp_x] = palette444[pixels[disp_x] & 3];
+			buff[disp_x] = palette[pixels[disp_x] & 3];
 
 			t1 = t1 >> 1;
 			t2 = t2 >> 1;
@@ -1572,7 +1571,7 @@ void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 #if PEANUT_GB_12_COLOUR
 			pixels[disp_x] |= LCD_PALETTE_BG;
 #endif
-			buff[disp_x] =  palette444[pixels[disp_x] & 3];
+			buff[disp_x] =  palette[pixels[disp_x] & 3];
 			t1 = t1 >> 1;
 			t2 = t2 >> 1;
 			px++;
@@ -1708,7 +1707,7 @@ void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 					/* Set pixel palette (OBJ0 or OBJ1). */
 					pixels[disp_x] |= (OF & OBJ_PALETTE);
 #endif
-					buff[disp_x] =  palette444[pixels[disp_x] & 3];
+					buff[disp_x] =  palette[pixels[disp_x] & 3];
 				}
 				
 

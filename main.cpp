@@ -22,9 +22,9 @@
 
 #include "mytypes.h"
 #include "gb.h"
-
+#include "vumeter.h"
 #ifndef CPUKFREQKHZ
-//#define CPUKFREQKHZ 266000
+// #define CPUKFREQKHZ 266000
 #define CPUKFREQKHZ 252000
 #endif
 
@@ -54,24 +54,30 @@ bool reset = false;
 #define NORENDER 0 // 0 is render frames in emulation loop
 #endif
 
-
 constexpr uint32_t CPUFreqKHz = CPUKFREQKHZ; // 252000;
 #if !HSTX
 dvi::DVI::LineBuffer *currentLineBuffer_{};
-#else 
-WORD *currentLineBuffer_{};
 #endif
+WORD *currentLineBuf{nullptr};
 
 int sample_index = 0;
 
+// Master gain control for external audio output (I2S / SPI).
+// Higher values mean more attenuation: sample >> AUDIO_OUTPUT_GAIN_SHIFT.
+// 4 was effectively used before (see l >> 4 in enqueue). If audio was too loud
+// and distorted (likely clipping in DAC / amp), increase this value.
+// Try 5 ( /32 ) or 6 ( /64 ) depending on headroom needed.
+#ifndef AUDIO_OUTPUT_GAIN_SHIFT
+#define AUDIO_OUTPUT_GAIN_SHIFT 5
+#endif
+
 void __not_in_flash_func(processaudio)()
 {
-
-    int samples = 6; //  (739/144)
-#if !HSTX
     // the audio_buffer is in fact a 32 bit array.
     // the first 16 bits are the left channel, the next 16 bits are the right channel
     uint32_t *sample_buffer = (uint32_t *)audio_stream;
+    int samples = 6; //  (739/144)
+#if !HSTX
 
     while (samples)
     {
@@ -84,20 +90,23 @@ void __not_in_flash_func(processaudio)()
         }
         auto p = ring.getWritePointer();
         int ct = n;
-        while (ct--)
+        while (ct-- && sample_index < 738)
         {
 
-            // extract the left and right channel from the audio buffer
-            uint32_t *p1 = &sample_buffer[sample_index];
-            int l = *p1 >> 16;
-            ;
-            int r = *p1 & 0xFFFF;
-            *p++ = {static_cast<short>(l), static_cast<short>(r)};
+            // Extract the left and right channel from the packed 32-bit sample.
+            // Perform proper sign extension by casting to int16_t before widening.
+            uint32_t packed = sample_buffer[sample_index];
+            int16_t l = static_cast<int16_t>(packed >> 16);
+            int16_t r = static_cast<int16_t>(packed & 0xFFFF);
+            // Write unscaled to internal DVI ring buffer (it expects int16_t PCM).
+            *p++ = {l, r};
             sample_index++;
         }
         ring.advanceWritePointer(n);
         samples -= n;
     }
+#else
+
 #endif
 }
 
@@ -174,6 +183,7 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
             if (pushed & A)
             {
                 fps_enabled = !fps_enabled;
+                Frens::loadOverLay(); // reload overlay to show or hide fps
                 // printf("FPS: %s\n", fps_enabled ? "ON" : "OFF");
             }
             if (pushed & UP)
@@ -234,20 +244,32 @@ int ProcessAfterFrameIsRendered(bool frommenu)
     return count;
 }
 
-WORD *__not_in_flash_func(dvi_getlinebuffer)()
+WORD *__not_in_flash_func(dvi_getlinebuffer)(uint8_t line)
 {
-    uint16_t *sbuffer;
 #if NORENDER
     static WORD tmpbuffer[512];
-    sbuffer = tmpbuffer;
-#else
+    currentLineBuf = tmpbuffer;
+    return currentLineBuf;
+#endif
 #if !HSTX
-    auto b = dvi_->getLineBuffer();
-    sbuffer = b->data() + (LEFTMARGIN);
-    currentLineBuffer_ = b;
+#if FRAMEBUFFERISPOSSIBLE
+    if (Frens::isFrameBufferUsed())
+    {
+        currentLineBuf = &Frens::framebuffer[(line + MARGINTOP) * SCREENWIDTH] + LEFTMARGIN;
+    }
+    else
+    {
 #endif
+        auto b = dvi_->getLineBuffer();
+        currentLineBuf = b->data() + (LEFTMARGIN);
+        currentLineBuffer_ = b;
+#if FRAMEBUFFERISPOSSIBLE
+    }
 #endif
-    return sbuffer;
+#else
+    currentLineBuf = hstx_getlineFromFramebuffer(line + MARGINTOP) + LEFTMARGIN;
+#endif
+    return currentLineBuf;
 }
 
 /**
@@ -270,7 +292,7 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
     {
         if (line >= FPSSTART && line < FPSEND)
         {
-            WORD *fpsBuffer = currentLineBuffer_->data() + FPSLEFTMARGIN;
+            WORD *fpsBuffer = currentLineBuf - LEFTMARGIN + FPSLEFTMARGIN;
             int rowInChar = line % 8;
             for (auto i = 0; i < 2; i++)
             {
@@ -290,28 +312,37 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
                 }
             }
         }
-#if FPSLEFTMARGIN < LEFTMARGIN
-        if (line >= FPSEND)
-        {
-            WORD *fpsBuffer = currentLineBuffer_->data() + FPSLEFTMARGIN;
-            for (auto i = 0; i < 16; i++)
-            {
-                *fpsBuffer++ = 0;
-            }
-        }
-#endif
+        // #if FPSLEFTMARGIN < LEFTMARGIN
+        //         if (line >= FPSEND)
+        //         {
+        //             WORD *fpsBuffer = currentLineBuf - LEFTMARGIN + FPSLEFTMARGIN;
+        //             for (auto i = 0; i < 16; i++)
+        //             {
+        //                 *fpsBuffer++ = 0;
+        //             }
+        //         }
+        // #endif
     }
-    // whene a scanline is skipped, copy current line buffer to the skipped line.
-    if (line - 1 != prevline)
+#if !HSTX
+#if FRAMEBUFFERISPOSSIBLE
+    if (!Frens::isFrameBufferUsed())
     {
-        auto b = dvi_->getLineBuffer();
-        WORD *buffer = b->data();
-        WORD *currentLineBuffer = currentLineBuffer_->data();
-        __builtin_memcpy(buffer, currentLineBuffer, 512 * sizeof(currentLineBuffer[0]));
-        dvi_->setLineBuffer(line - 1, b);
-        processaudio();
+#endif
+        // whene a scanline is skipped, copy current line buffer to the skipped line.
+        if (line - 1 != prevline)
+        {
+            auto b = dvi_->getLineBuffer();
+            WORD *buffer = b->data();
+            WORD *currentLineBuffer = currentLineBuffer_->data();
+            __builtin_memcpy(buffer, currentLineBuffer, 512 * sizeof(currentLineBuffer[0]));
+            dvi_->setLineBuffer(line - 1, b);
+            processaudio();
+        }
+        dvi_->setLineBuffer(line, currentLineBuffer_);
+#if FRAMEBUFFERISPOSSIBLE
     }
-    dvi_->setLineBuffer(line, currentLineBuffer_);
+#endif
+#endif
     processaudio();
     prevline = line;
 #endif
@@ -324,6 +355,7 @@ bool load_rom(char *, unsigned char *)
 void __not_in_flash_func(process)()
 {
 
+    uint32_t *sample_buffer = (uint32_t *)audio_stream;
     DWORD pdwPad1, pdwPad2, pdwSystem; // have only meaning in menu
     int fcount = 0;
     emu_init_lcd(&infogb_plot_line);
@@ -331,6 +363,7 @@ void __not_in_flash_func(process)()
     int frametime = 0;
     while (reset == false)
     {
+        Frens::PaceFrames60fps(false);
         sample_index = 0;
         processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false, nullptr);
         ti1 = Frens::time_us();
@@ -339,6 +372,21 @@ void __not_in_flash_func(process)()
         frametime = ti2 - ti1;
         fcount++;
         ProcessAfterFrameIsRendered(false);
+        for (int i = 0; i < 738; ++i)
+        {
+            uint32_t packed = sample_buffer[i];
+            // Properly sign-extend the 16-bit samples.
+            int16_t l = static_cast<int16_t>(packed >> 16);
+            int16_t r = static_cast<int16_t>(packed & 0xFFFF);
+            // Apply master attenuation to avoid clipping/distortion on output stage.
+            EXT_AUDIO_ENQUEUE_SAMPLE(l >> AUDIO_OUTPUT_GAIN_SHIFT, r >> AUDIO_OUTPUT_GAIN_SHIFT);
+#if ENABLE_VU_METER
+            if (settings.flags.enableVUMeter)
+            {
+                addSampleToVUMeter(l);
+            }
+#endif
+        }
     }
 }
 
@@ -368,9 +416,14 @@ int main()
     printf("==========================================================================================\n");
     printf("Starting up...\n");
 
-
-    isFatalError = !Frens::initAll(selectedRom, CPUFreqKHz, MARGINTOP, MARGINBOTTOM, 512, false, true);
+    isFatalError = !Frens::initAll(selectedRom, CPUFreqKHz, MARGINTOP, MARGINBOTTOM, 512 * 8, false, true);
 #if !HSTX
+    if (settings.screenMode != ScreenMode::NOSCANLINE_1_1 && settings.screenMode != ScreenMode::SCANLINE_1_1)
+    {
+        // force NOSCANLINE_1_1 mode for GB, as the framebuffer is only 160x144 pixels
+        settings.screenMode = ScreenMode::NOSCANLINE_1_1;
+        Frens::savesettings();
+    }
     scaleMode8_7_ = Frens::applyScreenMode(settings.screenMode);
 #endif
 
@@ -381,20 +434,14 @@ int main()
         {
             menu("Pico-PeanutGB", ErrorMessage, isFatalError, showSplash, ".gb .gbc", selectedRom, "GB"); // never returns, but reboots upon selecting a game
         }
-#if !HSTX
-        if (settings.screenMode != ScreenMode::SCANLINE_1_1 && settings.screenMode != ScreenMode::NOSCANLINE_1_1)
-        {
-            settings.screenMode = ScreenMode::SCANLINE_1_1;
-            Frens::savesettings();
-        }
-        scaleMode8_7_ = Frens::applyScreenMode(settings.screenMode);
-#endif
+
         reset = false;
         printf("Now playing: %s\n", selectedRom);
 
         printf("Initializing Game Boy Emulator\n");
+        Frens::loadOverLay(); // load default overlay
         uint8_t *rom = reinterpret_cast<unsigned char *>(ROM_FILE_ADDR);
-        if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage))
+        if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage, HSTX))
         {
             process();
             stopemulation(romName, GAMESAVEDIR);
