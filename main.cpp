@@ -60,23 +60,14 @@ dvi::DVI::LineBuffer *currentLineBuffer_{};
 #endif
 WORD *currentLineBuf{nullptr};
 
-int sample_index = 0;
-
-// Master gain control for external audio output (I2S / SPI).
-// Higher values mean more attenuation: sample >> AUDIO_OUTPUT_GAIN_SHIFT.
-// 4 was effectively used before (see l >> 4 in enqueue). If audio was too loud
-// and distorted (likely clipping in DAC / amp), increase this value.
-// Try 5 ( /32 ) or 6 ( /64 ) depending on headroom needed.
-#ifndef AUDIO_OUTPUT_GAIN_SHIFT
-#define AUDIO_OUTPUT_GAIN_SHIFT 5
-#endif
-
+#if 0
 void __not_in_flash_func(processaudio)()
 {
     // the audio_buffer is in fact a 32 bit array.
     // the first 16 bits are the left channel, the next 16 bits are the right channel
     uint32_t *sample_buffer = (uint32_t *)audio_stream;
     int samples = 6; //  (739/144)
+
 #if !HSTX
 
     while (samples)
@@ -105,11 +96,89 @@ void __not_in_flash_func(processaudio)()
         ring.advanceWritePointer(n);
         samples -= n;
     }
-#else
-
 #endif
 }
+#endif
 
+#if !HSTX
+static void inline processaudioPerFrameDVI()
+{
+    uint32_t *sample_buffer = (uint32_t *)audio_stream;
+    constexpr int kSamplesPerFrame = 738; // stereo frames (left/right packed)
+    int i = 0;
+    while (i < kSamplesPerFrame)
+    {
+        auto &ring = dvi_->getAudioRingBuffer();
+        int writable = ring.getWritableSize();
+        if (!writable)
+            return; // no space, drop remaining (rare)
+        int n = std::min(kSamplesPerFrame - i, writable);
+        auto p = ring.getWritePointer();
+        for (int j = 0; j < n; ++j)
+        {
+            uint32_t packed = sample_buffer[i + j];
+            int16_t l = static_cast<int16_t>(packed >> 16);
+            int16_t r = static_cast<int16_t>(packed & 0xFFFF);
+            // Optionally apply attenuation (reuse same macro as I2S for consistency)
+            l = l >> 2;
+            r = r >> 2 ;
+            *p++ = {l, r};
+        }
+        ring.advanceWritePointer(n);
+        i += n;
+    }
+}
+#endif
+static void inline processaudioPerFrameI2S()
+{
+    uint32_t *sample_buffer = (uint32_t *)audio_stream;
+    // Enqueue all 738 samples (369 stereo pairs) for this frame.
+    // Each sample is a packed 32-bit value with left channel in the upper 16 bits
+    // and right channel in the lower 16 bits.
+    // We apply a right shift of 5 to reduce volume and avoid clipping/distortion.
+    // This is equivalent to dividing by 32, which reduces the amplitude to ~3.125% of original.
+    // This is necessary because the output stage can introduce distortion if driven too hard.
+    constexpr int kSamplesPerFrame = 738;
+    for (int i = 0; i < kSamplesPerFrame; ++i)
+    {
+        uint32_t packed = sample_buffer[i];
+        // Properly sign-extend the 16-bit samples.
+        int16_t l = static_cast<int16_t>(packed >> 16);
+        int16_t r = static_cast<int16_t>(packed & 0xFFFF);
+        // Apply master attenuation to avoid clipping/distortion on output stage.
+#ifdef AUDIO_OUTPUT_GAIN_SHIFT
+        l = l >> AUDIO_OUTPUT_GAIN_SHIFT;
+        r = r >> AUDIO_OUTPUT_GAIN_SHIFT;
+#endif
+        EXT_AUDIO_ENQUEUE_SAMPLE(l, r);
+#if ENABLE_VU_METER
+        if (settings.flags.enableVUMeter)
+        {
+            addSampleToVUMeter(l);
+        }
+#endif
+    }
+}
+void inline output_audio_per_frame()
+{
+
+#if !HSTX
+#if EXT_AUDIO_IS_ENABLED
+    if (settings.flags.useExtAudio == 1)
+    {
+        processaudioPerFrameI2S();
+    }
+    else
+    {
+        processaudioPerFrameDVI();
+    }
+#else
+    processaudioPerFrameDVI();
+#endif
+#else
+    processaudioPerFrameI2S();
+#endif
+}
 static DWORD prevButtons[2]{};
 static DWORD prevButtonssystem[2]{};
 static DWORD prevOtherButtons[2]{};
@@ -118,6 +187,9 @@ static int rapidFireMask[2]{};
 static int rapidFireCounter = 0;
 void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed, char *gamepadType = nullptr)
 {
+#if ENABLE_VU_METER
+    bool toggleVUMeter = false;
+#endif
     // pwdPad1 and pwdPad2 are only used in menu and are only set on first push
     *pdwPad1 = *pdwPad2 = *pdwSystem = 0;
     unsigned long pushed;
@@ -190,15 +262,53 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
             {
 #if !HSTX
                 Frens::screenMode(-1);
+#else
+                Frens::toggleScanLines();
 #endif
             }
             else if (pushed & DOWN)
             {
 #if !HSTX
                 Frens::screenMode(+1);
+#else
+                Frens::toggleScanLines();
 #endif
             }
+            else if (pushed & LEFT)
+            {
+                // Toggle audio output, ignore if HSTX is enabled, because HSTX must use external audio
+#if EXT_AUDIO_IS_ENABLED && !HSTX
+                settings.flags.useExtAudio = !settings.flags.useExtAudio;
+                if (settings.flags.useExtAudio)
+                {
+                    printf("Using I2S Audio\n");
+                }
+                else
+                {
+                    printf("Using DVIAudio\n");
+                }
+
+#else
+                settings.flags.useExtAudio = 0;
+#endif
+                Frens::savesettings();
+            }
+#if ENABLE_VU_METER
+            else if (pushed & RIGHT)
+            {
+                toggleVUMeter = true;
+            }
+#endif
         }
+#if ENABLE_VU_METER
+        if (toggleVUMeter || isVUMeterToggleButtonPressed())
+        {
+            settings.flags.enableVUMeter = !settings.flags.enableVUMeter;
+            Frens::savesettings();
+            // printf("VU Meter %s\n", settings.flags.enableVUMeter ? "enabled" : "disabled");
+            turnOffAllLeds();
+        }
+#endif
         prevButtons[i] = v;
         // return only on first push
         if (pushed)
@@ -336,14 +446,14 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
             WORD *currentLineBuffer = currentLineBuffer_->data();
             __builtin_memcpy(buffer, currentLineBuffer, 512 * sizeof(currentLineBuffer[0]));
             dvi_->setLineBuffer(line - 1, b);
-            processaudio();
+            //processaudio();
         }
         dvi_->setLineBuffer(line, currentLineBuffer_);
 #if FRAMEBUFFERISPOSSIBLE
     }
 #endif
 #endif
-    processaudio();
+    //processaudio();
     prevline = line;
 #endif
 }
@@ -354,8 +464,6 @@ bool load_rom(char *, unsigned char *)
 }
 void __not_in_flash_func(process)()
 {
-
-    uint32_t *sample_buffer = (uint32_t *)audio_stream;
     DWORD pdwPad1, pdwPad2, pdwSystem; // have only meaning in menu
     int fcount = 0;
     emu_init_lcd(&infogb_plot_line);
@@ -364,7 +472,6 @@ void __not_in_flash_func(process)()
     while (reset == false)
     {
         Frens::PaceFrames60fps(false);
-        sample_index = 0;
         processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false, nullptr);
         ti1 = Frens::time_us();
         emu_run_frame();
@@ -372,21 +479,7 @@ void __not_in_flash_func(process)()
         frametime = ti2 - ti1;
         fcount++;
         ProcessAfterFrameIsRendered(false);
-        for (int i = 0; i < 738; ++i)
-        {
-            uint32_t packed = sample_buffer[i];
-            // Properly sign-extend the 16-bit samples.
-            int16_t l = static_cast<int16_t>(packed >> 16);
-            int16_t r = static_cast<int16_t>(packed & 0xFFFF);
-            // Apply master attenuation to avoid clipping/distortion on output stage.
-            EXT_AUDIO_ENQUEUE_SAMPLE(l >> AUDIO_OUTPUT_GAIN_SHIFT, r >> AUDIO_OUTPUT_GAIN_SHIFT);
-#if ENABLE_VU_METER
-            if (settings.flags.enableVUMeter)
-            {
-                addSampleToVUMeter(l);
-            }
-#endif
-        }
+        output_audio_per_frame();
     }
 }
 
