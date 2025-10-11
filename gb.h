@@ -30,12 +30,12 @@ extern "C" {
 #if ENABLE_SOUND
 #include "minigb_apu.h"
 #endif
-int  startemulation(uint8_t *rom, char *romname, const char *savedir, char *errormessage);
+int  startemulation(uint8_t *rom, char *romname, const char *savedir, char *errormessage, int USEHSTX);
 void stopemulation(char *romname, const char *savedir);
 void emu_init_lcd(void (*lcd_draw_line)(const uint_fast8_t line));
 void emu_run_frame();
 void emu_set_gamepad(uint8_t joypad);
-WORD *dvi_getlinebuffer();
+WORD *dvi_getlinebuffer(uint8_t line);
 #ifdef __cplusplus
 }
 #endif

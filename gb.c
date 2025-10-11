@@ -6,6 +6,8 @@
 #include "peanut_gb.h"
 
 #define MAX_SRAM_SIZE (0x2000 *4)    // Max 32KB SRAM
+extern void * frens_f_malloc(size_t size);
+extern void frens_f_free(void *ptr);
 
 struct priv_t
 {
@@ -21,6 +23,27 @@ static struct gb_s gb;
 
 uint8_t *GBaddress; // pointer to the GB ROM file
 
+static uint16_t palette444[] = {
+		/* DMG (original Game Boy) canonical green palette (light -> dark)
+		 * Source 24-bit colors: #9BBC0F, #8BAC0F, #306230, #0F380F
+		 * Converted to RGB444 (Rrrrr Gggg Bbbb ---- layout):
+		 *   #9BBC0F -> 9,B,0 => 0x9B00
+		 *   #8BAC0F -> 8,A,0 => 0x8A00
+		 *   #306230 -> 3,6,3 => 0x3630
+		 *   #0F380F -> 0,3,0 => 0x0300
+		 * Conversion used simple 8-bit -> 4-bit floor: v4 = v8 >> 4.
+		 * (If you prefer rounding: use (v8+8)/17; that would give B=1 for light shades.)
+		 */
+		0x9B00, 0x8A00, 0x3630, 0x0300,
+	};
+static uint16_t palette555[] = {
+		/* DMG (original Game Boy) canonical green palette (light -> dark)
+		 * Source colors (24-bit): #9BBC0F, #8BAC0F, #306230, #0F380F
+		 * Converted to RGB555:    0x4EE2 , 0x46A2 , 0x1986 , 0x08E2
+		 */
+		0x4EE2, 0x46A2, 0x1986, 0x08E2,
+	};
+uint16_t *currentpalette;
 #if ENABLE_SOUND
 #define AUDIO_BUFFER_SIZE (AUDIO_SAMPLES * sizeof(u_int32_t))
 uint16_t *audio_stream;
@@ -195,9 +218,14 @@ void savesram(char *romname, const char *savedir) {
     }
 
 }
-int startemulation(uint8_t *rom, char *romname, const char *savedir, char *ErrorMessage)
+int startemulation(uint8_t *rom, char *romname, const char *savedir, char *ErrorMessage, int USEHSTX)
 {
-    
+    if (USEHSTX) {
+        currentpalette = palette555;
+    } else {
+        currentpalette = palette444;
+    }
+    printf("Starting GB emulation\n");
     ErrorMessage[0] = 0;
     priv.rom = GBaddress = rom;
     ret = gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
@@ -216,7 +244,7 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
     printf("Allocating %d bytes for sample buffer (%d * %d).\n", AUDIO_BUFFER_SIZE, AUDIO_SAMPLES, sizeof(u_int32_t));
     printf("Audio Samples per frame: %d\n", AUDIO_SAMPLES);
     // Audiobuffer is a 32 bit array of AUDIO_SAMPLES
-    audio_stream = (uint16_t *)malloc(AUDIO_BUFFER_SIZE);
+    audio_stream = (uint16_t *)frens_f_malloc(AUDIO_BUFFER_SIZE);
     audio_init();
 #endif
     uint32_t save_size = gb_get_save_size(&gb);
@@ -224,7 +252,7 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
     priv.cart_ram = NULL;
     if (save_size > 0 && save_size <= MAX_SRAM_SIZE)
     {
-        priv.cart_ram = (uint8_t *)malloc(save_size);
+        priv.cart_ram = (uint8_t *)frens_f_malloc(save_size);
         memset(priv.cart_ram, 0, save_size);
         if (priv.cart_ram == NULL)
         {
@@ -266,9 +294,9 @@ void emu_set_gamepad(uint8_t joypad) {
 void stopemulation(char *romname, const char *savedir) {
     if ( priv.cart_ram != NULL ) {
         savesram(romname, savedir);
-        free(priv.cart_ram);
+        frens_f_free(priv.cart_ram);
     }
     if (audio_stream != NULL) {
-        free(audio_stream);
+        frens_f_free(audio_stream);
     }
 }
