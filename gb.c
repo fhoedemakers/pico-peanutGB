@@ -24,18 +24,23 @@ static struct gb_s gb;
 uint8_t *GBaddress; // pointer to the GB ROM file
 
 static uint16_t palette444[] = {
-		/* DMG (original Game Boy) canonical green palette (light -> dark)
-		 * Source 24-bit colors: #9BBC0F, #8BAC0F, #306230, #0F380F
-		 * Converted to RGB444 (Rrrrr Gggg Bbbb ---- layout):
-		 *   #9BBC0F -> 9,B,0 => 0x9B00
-		 *   #8BAC0F -> 8,A,0 => 0x8A00
-		 *   #306230 -> 3,6,3 => 0x3630
-		 *   #0F380F -> 0,3,0 => 0x0300
-		 * Conversion used simple 8-bit -> 4-bit floor: v4 = v8 >> 4.
-		 * (If you prefer rounding: use (v8+8)/17; that would give B=1 for light shades.)
-		 */
-		0x9B00, 0x8A00, 0x3630, 0x0300,
-	};
+        /* DMG (original Game Boy) canonical green palette (light -> dark)
+         * Source 24-bit colors: #9BBC0F, #8BAC0F, #306230, #0F380F
+         * RGB444 layout actually used by encodeTMDS_RGB444():
+         *   Bits 11..8 = Red (Rrrr)
+         *   Bits  7..4 = Green (Gggg)
+         *   Bits  3..0 = Blue (Bbbb)
+         * (Lower 12 bits packed as RRRR GGGG BBBB; upper 4 bits ignored.)
+         * Previous values were shifted left by 4 (Rrrrr Gggg Bbbb ----) causing color channels
+         * to be misaligned (producing a red-tinted background). Correct packing below.
+         * Converted with floor reduction v4 = v8 >> 4:
+         *   #9BBC0F -> R=9,G=11,B=0 => 0x09B0
+         *   #8BAC0F -> R=8,G=10,B=0 => 0x08A0
+         *   #306230 -> R=3,G=6 ,B=3 => 0x0363
+         *   #0F380F -> R=0,G=3 ,B=0 => 0x0030
+         */
+        0x09B0, 0x08A0, 0x0363, 0x0030,
+    };
 static uint16_t palette555[] = {
 		/* DMG (original Game Boy) canonical green palette (light -> dark)
 		 * Source colors (24-bit): #9BBC0F, #8BAC0F, #306230, #0F380F
