@@ -101,15 +101,33 @@ void __not_in_flash_func(processaudio)()
 }
 #endif
 
-void loadoverlay() {
-     char *overlay =
+void loadoverlay(bool usedefault = false)
+{
+    if (!Frens::isFrameBufferUsed())
+    {
+        return;
+    }
+    
+    static const char *borderdirs = "ABCDEFGHIJKLMNOPQRSTUVWY";
+    static char PATH[FF_MAX_LFN + 1];
+    static char CHOSEN[FF_MAX_LFN + 1];
+    char *overlay =
 #if !HSTX
-                (char *)GBOverlay_444;
+        (char *)GBOverlay_444;
 #else
-                (char *)GBOverlay_555;
+        (char *)GBOverlay_555;
 #endif
-            ;
-     Frens::loadOverLay(overlay);
+    ;
+    if (usedefault)
+    {
+        Frens::loadOverLay(nullptr, overlay);
+        return;
+    }
+    int fldIndex = (rand() % strlen(borderdirs));
+    snprintf(PATH, (FF_MAX_LFN + 1) * sizeof(char), "/metadata/GB/Images/Borders/%c", borderdirs[fldIndex]);
+    printf("Scanning random folder: %s\n", PATH);
+    FRESULT fr = Frens::pick_random_file_fullpath(PATH, CHOSEN, (FF_MAX_LFN + 1) * sizeof(char));
+    Frens::loadOverLay(CHOSEN, overlay);
 }
 #if !HSTX
 static void inline processaudioPerFrameDVI()
@@ -132,7 +150,7 @@ static void inline processaudioPerFrameDVI()
             int16_t r = static_cast<int16_t>(packed & 0xFFFF);
             // Optionally apply attenuation (reuse same macro as I2S for consistency)
             l = l >> 2;
-            r = r >> 2 ;
+            r = r >> 2;
             *p++ = {l, r};
         }
         ring.advanceWritePointer(n);
@@ -252,14 +270,6 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
         {
             pushed = v;
         }
-        if (p1 & SELECT)
-        {
-            if (pushed & START)
-            {
-                reset = true;
-                printf("Reset pressed\n");
-            }
-        }
         if (p1 & START)
         {
             // Toggle frame rate display
@@ -269,7 +279,18 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
                 loadoverlay(); // reload overlay to show or hide fps
                 // printf("FPS: %s\n", fps_enabled ? "ON" : "OFF");
             }
-            if (pushed & UP)
+        }
+        if (p1 & SELECT)
+        {
+            if (pushed & B) {
+                loadoverlay(true);
+            } else if (pushed & A) {
+                loadoverlay(); // reload overlay to show or hide fps
+            } else if (pushed & START)
+            {
+                reset = true;
+                printf("Reset pressed\n");
+            } else if (pushed & UP)
             {
 #if !HSTX
                 Frens::screenMode(-1);
@@ -457,14 +478,14 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
             WORD *currentLineBuffer = currentLineBuffer_->data();
             __builtin_memcpy(buffer, currentLineBuffer, 512 * sizeof(currentLineBuffer[0]));
             dvi_->setLineBuffer(line - 1, b);
-            //processaudio();
+            // processaudio();
         }
         dvi_->setLineBuffer(line, currentLineBuffer_);
 #if FRAMEBUFFERISPOSSIBLE
     }
 #endif
 #endif
-    //processaudio();
+    // processaudio();
     prevline = line;
 #endif
 }
