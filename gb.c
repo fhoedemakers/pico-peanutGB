@@ -2,12 +2,13 @@
 #include <stdio.h>
 #include "gb.h"
 #include "ff.h"
+
 #define __not_in_flash_func(func_name) func_name
+
 #include "peanut_gb.h"
 
 #define MAX_SRAM_SIZE (0x2000 *4)    // Max 32KB SRAM
-extern void * frens_f_malloc(size_t size);
-extern void frens_f_free(void *ptr);
+
 
 struct priv_t
 {
@@ -230,6 +231,11 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
     } else {
         currentpalette = palette444;
     }
+    gb.wram = (uint8_t *)frens_f_malloc(WRAM_SIZE);
+	gb.vram = (uint8_t *)frens_f_malloc(VRAM_SIZE);
+	gb.oam = (uint8_t *)frens_f_malloc(OAM_SIZE);
+	gb.hram_io = (uint8_t *)frens_f_malloc(HRAM_IO_SIZE);
+
     printf("Starting GB emulation\n");
     ErrorMessage[0] = 0;
     priv.rom = GBaddress = rom;
@@ -304,4 +310,9 @@ void stopemulation(char *romname, const char *savedir) {
     if (audio_stream != NULL) {
         frens_f_free(audio_stream);
     }
+    frens_f_free(gb.wram);
+    frens_f_free(gb.vram);
+    frens_f_free(gb.oam);
+    frens_f_free(gb.hram_io);
+    printf("Stopped GB emulation\n");
 }
