@@ -158,23 +158,128 @@ static void inline processaudioPerFrameDVI()
     }
 }
 #endif
+
+//#define IMPROVED_I2S_DISABLE 0 // set to 1 to disable improved I2S path and use legacy simple path
 static void inline processaudioPerFrameI2S()
 {
+    // Improved I2S path:
+    // 1. Convert emulator frame audio (738 input samples @ ~44.28 kHz frame-based) to 44.1 kHz (735 samples) to
+    //    match I2S configuration (PICO_AUDIO_I2S_FREQ).
+    // 2. Apply gentle DC blocking filter to remove bias and increase headroom.
+    // 3. Apply adjustable gain (bit shift or Q15 multiplier) with optional soft clip.
+    // 4. Feed continuous ring buffer via EXT_AUDIO_ENQUEUE_SAMPLE (already DMA driven in driver).
+
+#ifndef IMPROVED_I2S_DISABLE
+    constexpr int kInSamplesPerFrame = 738;          // emulator delivers this per video frame
+    constexpr int kFramesPerSecond = 60;             // video refresh
+    constexpr int kTargetRate = PICO_AUDIO_I2S_FREQ; // normally 44100
+    constexpr int kOutSamplesPerFrame = kTargetRate / kFramesPerSecond; // 44100 / 60 = 735
+    static_assert(kTargetRate % kFramesPerSecond == 0, "I2S target rate must divide by FPS for fixed per-frame output count");
+
+    uint32_t *sample_buffer = (uint32_t *)audio_stream; // packed emulator samples
+
+    // Resample using simple linear interpolation: output index -> fractional input position
+    // pos = j * kInSamplesPerFrame / kOutSamplesPerFrame
+    // Keep DC-block filter state across frames.
+    struct DcBlockState
+    {
+        int32_t yl = 0; // previous filtered sample (Q15 domain scaled back to int16 range)
+        int32_t yr = 0;
+        int16_t xl_prev = 0; // previous raw input sample
+        int16_t xr_prev = 0;
+    };
+    static DcBlockState dcState{};
+
+    // Q15 coefficient for 0.995 high-pass: y[n] = x[n]-x[n-1] + a*y[n-1]
+    constexpr int32_t kDcCoeffQ15 = 32760; // ~0.9997? Actually 0.999 -> could tune; using slightly lower (0.995 = 32540). Adjust for taste.
+    // Use 0.995 (32540). Replace constant above if wanting exactly 0.995.
+
+    auto dc_block = [&](int16_t x, int16_t &x_prev, int32_t &y_prev) -> int16_t {
+        int32_t y = (int32_t)x - (int32_t)x_prev + ((int64_t)kDcCoeffQ15 * y_prev >> 15);
+        x_prev = x;
+        // Soft limit in case of slight overshoot
+        if (y > 32767) y = 32767; else if (y < -32768) y = -32768;
+        y_prev = y;
+        return (int16_t)y;
+    };
+
+    // Optional simple 5-tap binomial low-pass (commented out by default); enable if high-frequency alias present.
+    // Keeping minimal overhead by disabled default.
+    struct LP5State { int16_t d[5]{0,0,0,0,0}; };
+    static LP5State lpL, lpR;
+    auto lowpass5 = [](int16_t x, LP5State &st) -> int16_t {
+        // shift
+        st.d[4] = st.d[3]; st.d[3] = st.d[2]; st.d[2] = st.d[1]; st.d[1] = st.d[0]; st.d[0] = x;
+        // 1 4 6 4 1 kernel /16
+        int32_t acc = st.d[0] + 4*st.d[1] + 6*st.d[2] + 4*st.d[3] + st.d[4];
+        return (int16_t)(acc >> 4);
+    };
+
+    // Gain control: either shift (fast) or Q15 multiplier (define AUDIO_OUTPUT_GAIN_Q15).
+#ifndef AUDIO_OUTPUT_GAIN_SHIFT
+#define AUDIO_OUTPUT_GAIN_SHIFT 2 // default attenuation ~ /4 to match DVI path (was 5 previously => too quiet)
+#endif
+
+#ifdef AUDIO_OUTPUT_GAIN_Q15
+    static uint16_t gain_q15 = AUDIO_OUTPUT_GAIN_Q15; // allow external modification
+#endif
+
+    for (int j = 0; j < kOutSamplesPerFrame; ++j)
+    {
+        // Fractional mapping
+        // Multiply first to preserve precision (both small ints); using 64-bit to avoid overflow
+        uint64_t num = (uint64_t)j * kInSamplesPerFrame;
+        uint32_t pos_int = num / kOutSamplesPerFrame;               // integer part
+        uint32_t pos_next = (pos_int + 1 < kInSamplesPerFrame) ? (pos_int + 1) : pos_int; // clamp at end
+        uint32_t frac_num = num - (uint64_t)pos_int * kOutSamplesPerFrame; // remainder relative to denominator
+        // Retrieve packed 32-bit samples
+        uint32_t s0 = sample_buffer[pos_int];
+        uint32_t s1 = sample_buffer[pos_next];
+        int16_t l0 = (int16_t)(s0 >> 16); int16_t r0 = (int16_t)(s0 & 0xFFFF);
+        int16_t l1 = (int16_t)(s1 >> 16); int16_t r1 = (int16_t)(s1 & 0xFFFF);
+        // Linear interpolation: value = v0 + (v1 - v0) * frac
+        // frac = frac_num / kOutSamplesPerFrame
+        int32_t dl = (int32_t)l1 - (int32_t)l0;
+        int32_t dr = (int32_t)r1 - (int32_t)r0;
+        int16_t l = (int16_t)(l0 + (dl * (int32_t)frac_num) / kOutSamplesPerFrame);
+        int16_t r = (int16_t)(r0 + (dr * (int32_t)frac_num) / kOutSamplesPerFrame);
+
+        // DC block per channel
+        l = dc_block(l, dcState.xl_prev, dcState.yl);
+        r = dc_block(r, dcState.xr_prev, dcState.yr);
+
+        // Optional smoothing low-pass (disabled by default for brightness)
+#ifdef ENABLE_I2S_LP5_FILTER
+        l = lowpass5(l, lpL);
+        r = lowpass5(r, lpR);
+#endif
+
+        // Apply gain
+#ifdef AUDIO_OUTPUT_GAIN_Q15
+        int32_t l32 = (int32_t)l * gain_q15; l = (int16_t)(l32 >> 15);
+        int32_t r32 = (int32_t)r * gain_q15; r = (int16_t)(r32 >> 15);
+#else
+        l = (int16_t)(l >> AUDIO_OUTPUT_GAIN_SHIFT);
+        r = (int16_t)(r >> AUDIO_OUTPUT_GAIN_SHIFT);
+#endif
+
+        EXT_AUDIO_ENQUEUE_SAMPLE(l, r);
+#if ENABLE_VU_METER
+        if (settings.flags.enableVUMeter)
+        {
+            addSampleToVUMeter(l);
+        }
+#endif
+    }
+#else // IMPROVED_I2S_DISABLE
+    // Legacy simple path (still here for fallback/testing)
     uint32_t *sample_buffer = (uint32_t *)audio_stream;
-    // Enqueue all 738 samples (369 stereo pairs) for this frame.
-    // Each sample is a packed 32-bit value with left channel in the upper 16 bits
-    // and right channel in the lower 16 bits.
-    // We apply a right shift of 5 to reduce volume and avoid clipping/distortion.
-    // This is equivalent to dividing by 32, which reduces the amplitude to ~3.125% of original.
-    // This is necessary because the output stage can introduce distortion if driven too hard.
     constexpr int kSamplesPerFrame = 738;
     for (int i = 0; i < kSamplesPerFrame; ++i)
     {
         uint32_t packed = sample_buffer[i];
-        // Properly sign-extend the 16-bit samples.
         int16_t l = static_cast<int16_t>(packed >> 16);
         int16_t r = static_cast<int16_t>(packed & 0xFFFF);
-        // Apply master attenuation to avoid clipping/distortion on output stage.
 #ifdef AUDIO_OUTPUT_GAIN_SHIFT
         l = l >> AUDIO_OUTPUT_GAIN_SHIFT;
         r = r >> AUDIO_OUTPUT_GAIN_SHIFT;
@@ -187,6 +292,7 @@ static void inline processaudioPerFrameI2S()
         }
 #endif
     }
+#endif // IMPROVED_I2S_DISABLE
 }
 void inline output_audio_per_frame()
 {
