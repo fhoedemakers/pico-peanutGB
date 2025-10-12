@@ -127,6 +127,11 @@ void loadoverlay(bool usedefault = false)
     snprintf(PATH, (FF_MAX_LFN + 1) * sizeof(char), "/metadata/GB/Images/Borders/%c", borderdirs[fldIndex]);
     printf("Scanning random folder: %s\n", PATH);
     FRESULT fr = Frens::pick_random_file_fullpath(PATH, CHOSEN, (FF_MAX_LFN + 1) * sizeof(char));
+    if ( fr != FR_OK ) {
+        printf("Failed to pick random file from %s: %d\n", PATH, fr);
+        Frens::loadOverLay(nullptr, overlay);
+        return;
+    }
     Frens::loadOverLay(CHOSEN, overlay);
 }
 #if !HSTX
