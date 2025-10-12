@@ -27,7 +27,8 @@
 // #define CPUKFREQKHZ 266000
 #define CPUKFREQKHZ 252000
 #endif
-
+extern const unsigned char GBOverlay_444[];
+extern const unsigned char GBOverlay_555[];
 char *romName;
 
 bool isFatalError = false;
@@ -100,6 +101,16 @@ void __not_in_flash_func(processaudio)()
 }
 #endif
 
+void loadoverlay() {
+     char *overlay =
+#if !HSTX
+                (char *)GBOverlay_444;
+#else
+                (char *)GBOverlay_555;
+#endif
+            ;
+     Frens::loadOverLay(overlay);
+}
 #if !HSTX
 static void inline processaudioPerFrameDVI()
 {
@@ -255,7 +266,7 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
             if (pushed & A)
             {
                 fps_enabled = !fps_enabled;
-                Frens::loadOverLay(); // reload overlay to show or hide fps
+                loadoverlay(); // reload overlay to show or hide fps
                 // printf("FPS: %s\n", fps_enabled ? "ON" : "OFF");
             }
             if (pushed & UP)
@@ -532,7 +543,7 @@ int main()
         printf("Now playing: %s\n", selectedRom);
 
         printf("Initializing Game Boy Emulator\n");
-        Frens::loadOverLay(); // load default overlay
+        loadoverlay(); // load default overlay
         uint8_t *rom = reinterpret_cast<unsigned char *>(ROM_FILE_ADDR);
         if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage, HSTX))
         {
