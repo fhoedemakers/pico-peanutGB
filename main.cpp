@@ -27,6 +27,11 @@
 // #define CPUKFREQKHZ 266000
 #define CPUKFREQKHZ 252000
 #endif
+
+#ifndef SHOWBEZELS
+#define SHOWBEZELS 1 // 0 is no bezels
+#endif
+
 extern const unsigned char GBOverlay_444[];
 extern const unsigned char GBOverlay_555[];
 char *romName;
@@ -107,7 +112,7 @@ void loadoverlay(bool usedefault = false)
     {
         return;
     }
-    
+    char CRC[9];
     static const char *borderdirs = "ABCDEFGHIJKLMNOPQRSTUVWY";
     static char PATH[FF_MAX_LFN + 1];
     static char CHOSEN[FF_MAX_LFN + 1];
@@ -123,6 +128,11 @@ void loadoverlay(bool usedefault = false)
         Frens::loadOverLay(nullptr, overlay);
         return;
     }
+#if SHOWBEZELS
+     snprintf(CRC, sizeof(CRC), "%08X", Frens::getCrcOfLoadedRom() );
+     snprintf(CHOSEN, (FF_MAX_LFN + 1) * sizeof(char), "/metadata/GB/Images/Bezels/%c/%s%s", CRC[0],  CRC, FILEXTFORSEARCH);
+     printf("Loading bezel: %s\n", CHOSEN);
+#else
     int fldIndex = (rand() % strlen(borderdirs));
     snprintf(PATH, (FF_MAX_LFN + 1) * sizeof(char), "/metadata/GB/Images/Borders/%c", borderdirs[fldIndex]);
     printf("Scanning random folder: %s\n", PATH);
@@ -132,6 +142,7 @@ void loadoverlay(bool usedefault = false)
         Frens::loadOverLay(nullptr, overlay);
         return;
     }
+#endif
     Frens::loadOverLay(CHOSEN, overlay);
 }
 #if !HSTX
