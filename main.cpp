@@ -28,9 +28,6 @@
 #define CPUKFREQKHZ 252000
 #endif
 
-#ifndef SHOWBEZELS
-#define SHOWBEZELS 1 // 0 is no bezels
-#endif
 
 extern const unsigned char GBOverlay_444[];
 extern const unsigned char GBOverlay_555[];
@@ -106,7 +103,7 @@ void __not_in_flash_func(processaudio)()
 }
 #endif
 
-void loadoverlay(bool usedefault = false)
+void loadoverlay()
 {
     if (!Frens::isFrameBufferUsed())
     {
@@ -123,26 +120,32 @@ void loadoverlay(bool usedefault = false)
         (char *)GBOverlay_555;
 #endif
     ;
-    if (usedefault)
+    int fldIndex;
+    if (settings.flags.borderMode == DEFAULTBORDER)
     {
         Frens::loadOverLay(nullptr, overlay);
         return;
     }
-#if SHOWBEZELS
-     snprintf(CRC, sizeof(CRC), "%08X", Frens::getCrcOfLoadedRom() );
-     snprintf(CHOSEN, (FF_MAX_LFN + 1) * sizeof(char), "/metadata/GB/Images/Bezels/%c/%s%s", CRC[0],  CRC, FILEXTFORSEARCH);
-     printf("Loading bezel: %s\n", CHOSEN);
-#else
-    int fldIndex = (rand() % strlen(borderdirs));
-    snprintf(PATH, (FF_MAX_LFN + 1) * sizeof(char), "/metadata/GB/Images/Borders/%c", borderdirs[fldIndex]);
-    printf("Scanning random folder: %s\n", PATH);
-    FRESULT fr = Frens::pick_random_file_fullpath(PATH, CHOSEN, (FF_MAX_LFN + 1) * sizeof(char));
-    if ( fr != FR_OK ) {
-        printf("Failed to pick random file from %s: %d\n", PATH, fr);
-        Frens::loadOverLay(nullptr, overlay);
-        return;
+
+    if (settings.flags.borderMode == THEMEDBORDER)
+    {
+        snprintf(CRC, sizeof(CRC), "%08X", Frens::getCrcOfLoadedRom());
+        snprintf(CHOSEN, (FF_MAX_LFN + 1) * sizeof(char), "/metadata/GB/Images/Bezels/%c/%s%s", CRC[0], CRC, FILEXTFORSEARCH);
+        printf("Loading bezel: %s\n", CHOSEN);
     }
-#endif
+    else
+    {
+        fldIndex = (rand() % strlen(borderdirs));
+        snprintf(PATH, (FF_MAX_LFN + 1) * sizeof(char), "/metadata/GB/Images/Borders/%c", borderdirs[fldIndex]);
+        printf("Scanning random folder: %s\n", PATH);
+        FRESULT fr = Frens::pick_random_file_fullpath(PATH, CHOSEN, (FF_MAX_LFN + 1) * sizeof(char));
+        if (fr != FR_OK)
+        {
+            printf("Failed to pick random file from %s: %d\n", PATH, fr);
+            Frens::loadOverLay(nullptr, overlay);
+            return;
+        }
+    }
     Frens::loadOverLay(CHOSEN, overlay);
 }
 #if !HSTX
@@ -175,7 +178,7 @@ static void inline processaudioPerFrameDVI()
 }
 #endif
 
-//#define IMPROVED_I2S_DISABLE 0 // set to 1 to disable improved I2S path and use legacy simple path
+// #define IMPROVED_I2S_DISABLE 0 // set to 1 to disable improved I2S path and use legacy simple path
 static void inline processaudioPerFrameI2S()
 {
     // Improved I2S path:
@@ -186,9 +189,9 @@ static void inline processaudioPerFrameI2S()
     // 4. Feed continuous ring buffer via EXT_AUDIO_ENQUEUE_SAMPLE (already DMA driven in driver).
 
 #ifndef IMPROVED_I2S_DISABLE
-    constexpr int kInSamplesPerFrame = 738;          // emulator delivers this per video frame
-    constexpr int kFramesPerSecond = 60;             // video refresh
-    constexpr int kTargetRate = PICO_AUDIO_I2S_FREQ; // normally 44100
+    constexpr int kInSamplesPerFrame = 738;                             // emulator delivers this per video frame
+    constexpr int kFramesPerSecond = 60;                                // video refresh
+    constexpr int kTargetRate = PICO_AUDIO_I2S_FREQ;                    // normally 44100
     constexpr int kOutSamplesPerFrame = kTargetRate / kFramesPerSecond; // 44100 / 60 = 735
     static_assert(kTargetRate % kFramesPerSecond == 0, "I2S target rate must divide by FPS for fixed per-frame output count");
 
@@ -210,24 +213,36 @@ static void inline processaudioPerFrameI2S()
     constexpr int32_t kDcCoeffQ15 = 32760; // ~0.9997? Actually 0.999 -> could tune; using slightly lower (0.995 = 32540). Adjust for taste.
     // Use 0.995 (32540). Replace constant above if wanting exactly 0.995.
 
-    auto dc_block = [&](int16_t x, int16_t &x_prev, int32_t &y_prev) -> int16_t {
+    auto dc_block = [&](int16_t x, int16_t &x_prev, int32_t &y_prev) -> int16_t
+    {
         int32_t y = (int32_t)x - (int32_t)x_prev + ((int64_t)kDcCoeffQ15 * y_prev >> 15);
         x_prev = x;
         // Soft limit in case of slight overshoot
-        if (y > 32767) y = 32767; else if (y < -32768) y = -32768;
+        if (y > 32767)
+            y = 32767;
+        else if (y < -32768)
+            y = -32768;
         y_prev = y;
         return (int16_t)y;
     };
 
     // Optional simple 5-tap binomial low-pass (commented out by default); enable if high-frequency alias present.
     // Keeping minimal overhead by disabled default.
-    struct LP5State { int16_t d[5]{0,0,0,0,0}; };
+    struct LP5State
+    {
+        int16_t d[5]{0, 0, 0, 0, 0};
+    };
     static LP5State lpL, lpR;
-    auto lowpass5 = [](int16_t x, LP5State &st) -> int16_t {
+    auto lowpass5 = [](int16_t x, LP5State &st) -> int16_t
+    {
         // shift
-        st.d[4] = st.d[3]; st.d[3] = st.d[2]; st.d[2] = st.d[1]; st.d[1] = st.d[0]; st.d[0] = x;
+        st.d[4] = st.d[3];
+        st.d[3] = st.d[2];
+        st.d[2] = st.d[1];
+        st.d[1] = st.d[0];
+        st.d[0] = x;
         // 1 4 6 4 1 kernel /16
-        int32_t acc = st.d[0] + 4*st.d[1] + 6*st.d[2] + 4*st.d[3] + st.d[4];
+        int32_t acc = st.d[0] + 4 * st.d[1] + 6 * st.d[2] + 4 * st.d[3] + st.d[4];
         return (int16_t)(acc >> 4);
     };
 
@@ -245,14 +260,16 @@ static void inline processaudioPerFrameI2S()
         // Fractional mapping
         // Multiply first to preserve precision (both small ints); using 64-bit to avoid overflow
         uint64_t num = (uint64_t)j * kInSamplesPerFrame;
-        uint32_t pos_int = num / kOutSamplesPerFrame;               // integer part
+        uint32_t pos_int = num / kOutSamplesPerFrame;                                     // integer part
         uint32_t pos_next = (pos_int + 1 < kInSamplesPerFrame) ? (pos_int + 1) : pos_int; // clamp at end
-        uint32_t frac_num = num - (uint64_t)pos_int * kOutSamplesPerFrame; // remainder relative to denominator
+        uint32_t frac_num = num - (uint64_t)pos_int * kOutSamplesPerFrame;                // remainder relative to denominator
         // Retrieve packed 32-bit samples
         uint32_t s0 = sample_buffer[pos_int];
         uint32_t s1 = sample_buffer[pos_next];
-        int16_t l0 = (int16_t)(s0 >> 16); int16_t r0 = (int16_t)(s0 & 0xFFFF);
-        int16_t l1 = (int16_t)(s1 >> 16); int16_t r1 = (int16_t)(s1 & 0xFFFF);
+        int16_t l0 = (int16_t)(s0 >> 16);
+        int16_t r0 = (int16_t)(s0 & 0xFFFF);
+        int16_t l1 = (int16_t)(s1 >> 16);
+        int16_t r1 = (int16_t)(s1 & 0xFFFF);
         // Linear interpolation: value = v0 + (v1 - v0) * frac
         // frac = frac_num / kOutSamplesPerFrame
         int32_t dl = (int32_t)l1 - (int32_t)l0;
@@ -272,8 +289,10 @@ static void inline processaudioPerFrameI2S()
 
         // Apply gain
 #ifdef AUDIO_OUTPUT_GAIN_Q15
-        int32_t l32 = (int32_t)l * gain_q15; l = (int16_t)(l32 >> 15);
-        int32_t r32 = (int32_t)r * gain_q15; r = (int16_t)(r32 >> 15);
+        int32_t l32 = (int32_t)l * gain_q15;
+        l = (int16_t)(l32 >> 15);
+        int32_t r32 = (int32_t)r * gain_q15;
+        r = (int16_t)(r32 >> 15);
 #else
         l = (int16_t)(l >> AUDIO_OUTPUT_GAIN_SHIFT);
         r = (int16_t)(r >> AUDIO_OUTPUT_GAIN_SHIFT);
@@ -404,15 +423,24 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
         }
         if (p1 & SELECT)
         {
-            if (pushed & B) {
-                loadoverlay(true);
-            } else if (pushed & A) {
-                loadoverlay(); // reload overlay to show or hide fps
-            } else if (pushed & START)
+            if (pushed & B)
+            {
+                // toggle settings.bordermode between enum values
+                settings.flags.borderMode = (settings.flags.borderMode + 1) % 3; // skip random border for now
+                printf("Border mode: %d\n", settings.flags.borderMode);
+                Frens::savesettings();
+                loadoverlay();
+            }
+            // else if (pushed & A)
+            // {
+            //     loadoverlay(); // reload overlay to show or hide fps
+            // }
+            else if (pushed & START)
             {
                 reset = true;
                 printf("Reset pressed\n");
-            } else if (pushed & UP)
+            }
+            else if (pushed & UP)
             {
 #if !HSTX
                 Frens::screenMode(-1);
@@ -681,7 +709,6 @@ int main()
         {
             menu("Pico-PeanutGB", ErrorMessage, isFatalError, showSplash, ".gb .gbc", selectedRom, "GB"); // never returns, but reboots upon selecting a game
         }
-
         reset = false;
         printf("Now playing: %s\n", selectedRom);
 
