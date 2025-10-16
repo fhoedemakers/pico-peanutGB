@@ -39,8 +39,8 @@ add_executable(${projectname}
     minigb_apu.c
     DefaultSS444.c
     DefaultSS555.c
-    GBOverlay444.c  
-    GBOverlay555.c
+    EmuOverlay444.c  
+    EmuOverlay555.c
 )
 
 pico_set_program_name(${projectname} "${projectname}")
