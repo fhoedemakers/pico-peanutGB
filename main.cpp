@@ -29,8 +29,8 @@
 #endif
 
 
-extern const unsigned char GBOverlay_444[];
-extern const unsigned char GBOverlay_555[];
+extern const unsigned char EmuOverlay_444[];
+extern const unsigned char EmuOverlay_555[];
 char *romName;
 
 bool isFatalError = false;
@@ -115,9 +115,9 @@ void loadoverlay()
     static char CHOSEN[FF_MAX_LFN + 1];
     char *overlay =
 #if !HSTX
-        (char *)GBOverlay_444;
+        (char *)EmuOverlay_444;
 #else
-        (char *)GBOverlay_555;
+        (char *)EmuOverlay_555;
 #endif
     ;
     int fldIndex;
