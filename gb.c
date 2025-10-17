@@ -2,13 +2,12 @@
 #include <stdio.h>
 #include "gb.h"
 #include "ff.h"
-
-#define __not_in_flash_func(func_name) func_name
+#include "stdbool.h"
+#include "pico.h"
 
 #include "peanut_gb.h"
 
-#define MAX_SRAM_SIZE (0x2000 *4)    // Max 32KB SRAM
-
+#define MAX_SRAM_SIZE (0x2000 * 4) // Max 32KB SRAM
 
 struct priv_t
 {
@@ -24,32 +23,61 @@ static struct gb_s gb;
 
 uint8_t *GBaddress; // pointer to the GB ROM file
 
+
+// Palette definition
+static const uint16_t __not_in_flash_func(greyscalePalette555)[3][4] = {
+		{0xFFFF, 0xAD55, 0x52AA, 0x0000},
+		{0xFFFF, 0xAD55, 0x52AA, 0x0000},
+		{0xFFFF, 0xAD55, 0x52AA, 0x0000}
+};
+
+static const uint16_t __not_in_flash_func(colorPalette555)[3][4] = {
+		{0xFFFF, 0xED13, 0xA207, 0x0000,},
+		{0xFFFF, 0xED13, 0xA207, 0x0000,},
+		{0xFFFF, 0x9E89, 0x3C9B, 0x0000,},
+};
+
+
+static uint16_t __not_in_flash_func(greyscalePalette444)[3][4] ;
+
+static uint16_t __not_in_flash_func(colorPalette444)[3][4] ;
+
 static uint16_t palette444[] = {
-        /* DMG (original Game Boy) canonical green palette (light -> dark)
-         * Source 24-bit colors: #9BBC0F, #8BAC0F, #306230, #0F380F
-         * RGB444 layout actually used by encodeTMDS_RGB444():
-         *   Bits 11..8 = Red (Rrrr)
-         *   Bits  7..4 = Green (Gggg)
-         *   Bits  3..0 = Blue (Bbbb)
-         * (Lower 12 bits packed as RRRR GGGG BBBB; upper 4 bits ignored.)
-         * Previous values were shifted left by 4 (Rrrrr Gggg Bbbb ----) causing color channels
-         * to be misaligned (producing a red-tinted background). Correct packing below.
-         * Converted with floor reduction v4 = v8 >> 4:
-         *   #9BBC0F -> R=9,G=11,B=0 => 0x09B0
-         *   #8BAC0F -> R=8,G=10,B=0 => 0x08A0
-         *   #306230 -> R=3,G=6 ,B=3 => 0x0363
-         *   #0F380F -> R=0,G=3 ,B=0 => 0x0030
-         */
-        0x09B0, 0x08A0, 0x0363, 0x0030,
-    };
+    /* DMG (original Game Boy) canonical green palette (light -> dark)
+     * Source 24-bit colors: #9BBC0F, #8BAC0F, #306230, #0F380F
+     * RGB444 layout actually used by encodeTMDS_RGB444():
+     *   Bits 11..8 = Red (Rrrr)
+     *   Bits  7..4 = Green (Gggg)
+     *   Bits  3..0 = Blue (Bbbb)
+     * (Lower 12 bits packed as RRRR GGGG BBBB; upper 4 bits ignored.)
+     * Previous values were shifted left by 4 (Rrrrr Gggg Bbbb ----) causing color channels
+     * to be misaligned (producing a red-tinted background). Correct packing below.
+     * Converted with floor reduction v4 = v8 >> 4:
+     *   #9BBC0F -> R=9,G=11,B=0 => 0x09B0
+     *   #8BAC0F -> R=8,G=10,B=0 => 0x08A0
+     *   #306230 -> R=3,G=6 ,B=3 => 0x0363
+     *   #0F380F -> R=0,G=3 ,B=0 => 0x0030
+     */
+    0x09B0,
+    0x08A0,
+    0x0363,
+    0x0030,
+};
 static uint16_t palette555[] = {
-		/* DMG (original Game Boy) canonical green palette (light -> dark)
-		 * Source colors (24-bit): #9BBC0F, #8BAC0F, #306230, #0F380F
-		 * Converted to RGB555:    0x4EE2 , 0x46A2 , 0x1986 , 0x08E2
-		 */
-		0x4EE2, 0x46A2, 0x1986, 0x08E2,
-	};
+    /* DMG (original Game Boy) canonical green palette (light -> dark)
+     * Source colors (24-bit): #9BBC0F, #8BAC0F, #306230, #0F380F
+     * Converted to RGB555:    0x4EE2 , 0x46A2 , 0x1986 , 0x08E2
+     */
+    0x4EE2,
+    0x46A2,
+    0x1986,
+    0x08E2,
+};
 uint16_t *currentpalette;
+#ifndef RGB555_TO_RGB444_DEFINED
+
+#define RGB555_TO_RGB444_DEFINED 1
+#endif
 #if ENABLE_SOUND
 #define AUDIO_BUFFER_SIZE (AUDIO_SAMPLES * sizeof(u_int32_t))
 uint16_t *audio_stream;
@@ -70,7 +98,6 @@ char *GetfileNameFromFullPath(char *fullPath)
     return fileName;
 }
 
-
 void stripextensionfromfilename(char *filename)
 {
     char *ptr = filename;
@@ -89,9 +116,8 @@ void stripextensionfromfilename(char *filename)
  * Returns a byte from the ROM file at the given address. Not used. Emulator reads directly from GBaddress.
  */
 
+// uint8_t *address = (uint8_t *)GB_FILE_ADDR;
 
-//uint8_t *address = (uint8_t *)GB_FILE_ADDR;
- 
 uint8_t __not_in_flash_func(gb_rom_read)(struct gb_s *gb, const uint_fast32_t addr)
 {
     // const struct priv_t * const p = gb->direct.priv;
@@ -204,8 +230,9 @@ void loadsram(char *romname, const char *savedir)
     }
 }
 
-// save SRAM to file	
-void savesram(char *romname, const char *savedir) {
+// save SRAM to file
+void savesram(char *romname, const char *savedir)
+{
     char pad[FF_MAX_LFN];
     char fileName[FF_MAX_LFN];
     strcpy(fileName, GetfileNameFromFullPath(romname));
@@ -222,26 +249,35 @@ void savesram(char *romname, const char *savedir) {
         }
         f_close(&file);
     }
-
 }
 int startemulation(uint8_t *rom, char *romname, const char *savedir, char *ErrorMessage, int USEHSTX)
 {
-    if (USEHSTX) {
+    for (int i = 0 ; i < 3; i++) {
+        for (int j = 0; j < 4; j++) {
+            greyscalePalette444[i][j] = RGB555ToRGB444(greyscalePalette555[i][j]);
+            colorPalette444[i][j] = RGB555ToRGB444(colorPalette555[i][j]);
+        }
+    }
+    if (USEHSTX)
+    {
         currentpalette = palette555;
-    } else {
+    }
+    else
+    {
         currentpalette = palette444;
     }
+#if 0
     gb.wram = (uint8_t *)frens_f_malloc(WRAM_SIZE);
 	gb.vram = (uint8_t *)frens_f_malloc(VRAM_SIZE);
 	gb.oam = (uint8_t *)frens_f_malloc(OAM_SIZE);
 	gb.hram_io = (uint8_t *)frens_f_malloc(HRAM_IO_SIZE);
-
+#endif
     printf("Starting GB emulation\n");
     ErrorMessage[0] = 0;
     priv.rom = GBaddress = rom;
     ret = gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
                   &gb_cart_ram_write, &gb_error, &priv);
-    
+
     if (ret != GB_INIT_NO_ERROR)
     {
         snprintf(ErrorMessage, 40, "Cannot init emulator %d", ret);
@@ -251,7 +287,7 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
     printf("Emulator initialized, rom name.\n");
 #if ENABLE_SOUND
     printf("Starting audio\n");
-    printf("Number of %d-byte samples per frame: %d\n", sizeof(u_int32_t),  AUDIO_SAMPLES);
+    printf("Number of %d-byte samples per frame: %d\n", sizeof(u_int32_t), AUDIO_SAMPLES);
     printf("Allocating %d bytes for sample buffer (%d * %d).\n", AUDIO_BUFFER_SIZE, AUDIO_SAMPLES, sizeof(u_int32_t));
     printf("Audio Samples per frame: %d\n", AUDIO_SAMPLES);
     // Audiobuffer is a 32 bit array of AUDIO_SAMPLES
@@ -270,7 +306,9 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
             strcpy(ErrorMessage, "Cannot allocate memory for save file");
             printf("%s\n", ErrorMessage);
             return 0;
-        } else {
+        }
+        else
+        {
             loadsram(romname, savedir);
         }
     }
@@ -284,8 +322,45 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
     return 1;
 }
 
-void emu_init_lcd(void (*lcd_draw_line)(const uint_fast8_t line)) {
-    gb_init_lcd(&gb, lcd_draw_line);
+void __not_in_flash_func(lcd_draw_line)(struct gb_s *gb,
+                                        const uint8_t *pixels,
+                                        const uint_fast8_t line)
+{
+    WORD *buff = dvi_getlinebuffer(line);
+    for (int x = 0; x < LCD_WIDTH; x++)
+    {
+        if (gb->cgb.cgbMode)
+        { // CGB
+            #if !HSTX
+                buff[x] = gb->cgb.fixPalette444[pixels[x]];    
+            #else
+                buff[x] = gb->cgb.fixPalette[pixels[x]];
+            #endif
+        }
+        else
+        { // DMG
+
+            // uint8_t color_index = pixels[x] & 0x03; // Get the 2-bit color index
+            // buff[x] = currentpalette[color_index];
+             #if !HSTX
+                buff[x] = colorPalette444[(pixels[x] & LCD_PALETTE_ALL) >> 4][pixels[x] & 3];
+             #else
+                buff[x] = colorPalette555[(pixels[x] & LCD_PALETTE_ALL) >> 4][pixels[x] & 3];
+            #endif
+        }
+    }
+    infogb_plot_line(line);
+    //   /* If external callback provided, invoke it with current line. */
+    //   if (dvi_drawline_cb) {
+    //       dvi_drawline_cb(line);
+    //   }
+    return;
+}
+
+// void emu_init_lcd(void (*lcd_draw_line)(const uint_fast8_t line)) {
+void emu_init_lcd()
+{
+    gb_init_lcd(&gb, &lcd_draw_line);
     gb.direct.interlace = false;
     gb.direct.frame_skip = false;
 }
@@ -295,24 +370,30 @@ void emu_run_frame()
     gb_run_frame(&gb);
 #if ENABLE_SOUND
     // send audio buffer to playback device
-    audio_callback(NULL, (uint8_t *)audio_stream, AUDIO_BUFFER_SIZE);   
+    audio_callback(NULL, (uint8_t *)audio_stream, AUDIO_BUFFER_SIZE);
 #endif
 }
-void emu_set_gamepad(uint8_t joypad) {
+void emu_set_gamepad(uint8_t joypad)
+{
     gb.direct.joypad = joypad;
 }
 
-void stopemulation(char *romname, const char *savedir) {
-    if ( priv.cart_ram != NULL ) {
+void stopemulation(char *romname, const char *savedir)
+{
+    if (priv.cart_ram != NULL)
+    {
         savesram(romname, savedir);
         frens_f_free(priv.cart_ram);
     }
-    if (audio_stream != NULL) {
+    if (audio_stream != NULL)
+    {
         frens_f_free(audio_stream);
     }
+#if false
     frens_f_free(gb.wram);
     frens_f_free(gb.vram);
     frens_f_free(gb.oam);
     frens_f_free(gb.hram_io);
+#endif
     printf("Stopped GB emulation\n");
 }
