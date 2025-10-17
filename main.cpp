@@ -536,7 +536,7 @@ int ProcessAfterFrameIsRendered(bool frommenu)
     return count;
 }
 
-WORD *__not_in_flash_func(dvi_getlinebuffer)(uint8_t line)
+WORD *__not_in_flash_func(dvi_getlinebuffer)(uint_fast8_t line)
 {
 #if NORENDER
     static WORD tmpbuffer[512];
@@ -648,7 +648,7 @@ void __not_in_flash_func(process)()
 {
     DWORD pdwPad1, pdwPad2, pdwSystem; // have only meaning in menu
     int fcount = 0;
-    emu_init_lcd(&infogb_plot_line);
+    emu_init_lcd();
     uint32_t ti1, ti2;
     int frametime = 0;
     while (reset == false)
