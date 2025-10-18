@@ -272,8 +272,8 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
     {
         for (int j = 0; j < 4; j++)
         {
-            dmgGreyscalePalette444[i][j] = RGB555ToRGB444(dmgGreyscalePalette555[i][j]);
-            dmgColorPalette444[i][j] = RGB555ToRGB444(dmgColorPalette555[i][j]);
+            dmgGreyscalePalette444[i][j] = RGB555_TO_RGB444(dmgGreyscalePalette555[i][j]);
+            dmgColorPalette444[i][j] = RGB555_TO_RGB444(dmgColorPalette555[i][j]);
         }
     }
     gbcPal = useHSTX ? gb.cgb.fixPalette : gb.cgb.fixPalette444;

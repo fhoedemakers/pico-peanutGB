@@ -743,20 +743,6 @@ struct gb_s
 #define IO_STAT_MODE_SEARCH_TRANSFER	3
 #define IO_STAT_MODE_VBLANK_OR_TRANSFER_MASK 0x1
 
-/* Convert a 15-bit RGB555 value (0RRRRRGGGGGBBBBB) to packed 12-bit RGB444 (RRRR GGGG BBBB).
- * Strategy: simple floor truncation: 5-bit channel (0..31) -> 4-bit (0..15) via >>1.
- * Returned format places R in bits 11..8, G in 7..4, B in 3..0. Upper 4 bits are zero.
- */
-static inline uint16_t RGB555ToRGB444(uint16_t rgb555)
-{
-    uint16_t r5 = (rgb555 >> 10) & 0x1F;
-    uint16_t g5 = (rgb555 >> 5) & 0x1F;
-    uint16_t b5 = rgb555 & 0x1F;
-    uint16_t r4 = r5 >> 1;
-    uint16_t g4 = g5 >> 1;
-    uint16_t b4 = b5 >> 1;
-    return (r4 << 8) | (g4 << 4) | b4;
-}
 /**
  * Internal function used to read bytes.
  * addr is host platform endian.
@@ -1327,7 +1313,7 @@ void __not_in_flash_func(__gb_write)(struct gb_s *gb, uint_fast16_t addr, uint8_
 			fixPaletteTemp = (gb->cgb.BGPalette[(gb->cgb.BGPaletteID & 0x3E) + 1] << 8) + (gb->cgb.BGPalette[(gb->cgb.BGPaletteID & 0x3E)]);
 			ndx = (gb->cgb.BGPaletteID & 0x3E) >> 1;
 			gb->cgb.fixPalette[ndx] = ((fixPaletteTemp & 0x7C00) >> 10) | (fixPaletteTemp & 0x03E0) | ((fixPaletteTemp & 0x001F) << 10);  // swap Red and Blue
-			gb->cgb.fixPalette444[ndx] = RGB555ToRGB444(gb->cgb.fixPalette[ndx]);
+			gb->cgb.fixPalette444[ndx] = RGB555_TO_RGB444(gb->cgb.fixPalette[ndx]);
 			if(gb->cgb.BGPaletteInc) gb->cgb.BGPaletteID = (++gb->cgb.BGPaletteID) & 0x3F;
 			return;
 
@@ -1343,7 +1329,7 @@ void __not_in_flash_func(__gb_write)(struct gb_s *gb, uint_fast16_t addr, uint8_
 			fixPaletteTemp = (gb->cgb.OAMPalette[(gb->cgb.OAMPaletteID & 0x3E) + 1] << 8) + (gb->cgb.OAMPalette[(gb->cgb.OAMPaletteID & 0x3E)]);
 			ndx = 0x20 + ((gb->cgb.OAMPaletteID & 0x3E) >> 1);
 			gb->cgb.fixPalette[ndx] = ((fixPaletteTemp & 0x7C00) >> 10) | (fixPaletteTemp & 0x03E0) | ((fixPaletteTemp & 0x001F) << 10);  // swap Red and Blue
-			gb->cgb.fixPalette444[ndx] = RGB555ToRGB444(gb->cgb.fixPalette[ndx]);
+			gb->cgb.fixPalette444[ndx] = RGB555_TO_RGB444(gb->cgb.fixPalette[ndx]);
 			if(gb->cgb.OAMPaletteInc) gb->cgb.OAMPaletteID = (++gb->cgb.OAMPaletteID) & 0x3F;
 			return;
 

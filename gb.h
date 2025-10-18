@@ -35,6 +35,15 @@ extern uint16_t *currentpalette;
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* Convert a 15-bit RGB555 value (0RRRRRGGGGGBBBBB) to packed 12-bit RGB444 (RRRR GGGG BBBB).
+ * Strategy: simple floor truncation: 5-bit channel (0..31) -> 4-bit (0..15) via >>1.
+ * Returned format places R in bits 11..8, G in 7..4, B in 3..0. Upper 4 bits are zero.
+ */
+#define RGB555_TO_RGB444(rgb555) ( \
+	((((rgb555) >> 10) & 0x1F) >> 1) << 8 | \
+	((((rgb555) >> 5) & 0x1F) >> 1) << 4 | \
+	(((rgb555) & 0x1F) >> 1) \
+)
 #if ENABLE_SOUND
 #include "minigb_apu.h"
 #endif
