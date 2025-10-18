@@ -22,27 +22,40 @@ enum gb_init_error_e ret;
 static struct gb_s gb;
 
 uint8_t *GBaddress; // pointer to the GB ROM file
-
+static bool useHSTX = false;
 
 // Palette definition
-static const uint16_t __not_in_flash_func(greyscalePalette555)[3][4] = {
-		{0xFFFF, 0xAD55, 0x52AA, 0x0000},
-		{0xFFFF, 0xAD55, 0x52AA, 0x0000},
-		{0xFFFF, 0xAD55, 0x52AA, 0x0000}
+static uint16_t __not_in_flash_func(dmgGreyscalePalette555)[3][4] = {
+    {0xFFFF, 0xAD55, 0x52AA, 0x0000},
+    {0xFFFF, 0xAD55, 0x52AA, 0x0000},
+    {0xFFFF, 0xAD55, 0x52AA, 0x0000}};
+
+static uint16_t __not_in_flash_func(dmgColorPalette555)[3][4] = {
+    {
+        0xFFFF,
+        0xED13,
+        0xA207,
+        0x0000,
+    },
+    {
+        0xFFFF,
+        0xED13,
+        0xA207,
+        0x0000,
+    },
+    {
+        0xFFFF,
+        0x9E89,
+        0x3C9B,
+        0x0000,
+    },
 };
 
-static const uint16_t __not_in_flash_func(colorPalette555)[3][4] = {
-		{0xFFFF, 0xED13, 0xA207, 0x0000,},
-		{0xFFFF, 0xED13, 0xA207, 0x0000,},
-		{0xFFFF, 0x9E89, 0x3C9B, 0x0000,},
-};
+static uint16_t __not_in_flash_func(dmgGreyscalePalette444)[3][4];
 
+static uint16_t __not_in_flash_func(dmgColorPalette444)[3][4];
 
-static uint16_t __not_in_flash_func(greyscalePalette444)[3][4] ;
-
-static uint16_t __not_in_flash_func(colorPalette444)[3][4] ;
-
-static uint16_t palette444[] = {
+static uint16_t dmgGreenPalette444[3][4] = {
     /* DMG (original Game Boy) canonical green palette (light -> dark)
      * Source 24-bit colors: #9BBC0F, #8BAC0F, #306230, #0F380F
      * RGB444 layout actually used by encodeTMDS_RGB444():
@@ -58,26 +71,23 @@ static uint16_t palette444[] = {
      *   #306230 -> R=3,G=6 ,B=3 => 0x0363
      *   #0F380F -> R=0,G=3 ,B=0 => 0x0030
      */
-    0x09B0,
-    0x08A0,
-    0x0363,
-    0x0030,
+    {0x09B0, 0x08A0, 0x0363, 0x0030},
+    {0x09B0, 0x08A0, 0x0363, 0x0030},
+    {0x09B0, 0x08A0, 0x0363, 0x0030},
 };
-static uint16_t palette555[] = {
+static uint16_t dmgGreenPalette555[3][4] = {
     /* DMG (original Game Boy) canonical green palette (light -> dark)
      * Source colors (24-bit): #9BBC0F, #8BAC0F, #306230, #0F380F
      * Converted to RGB555:    0x4EE2 , 0x46A2 , 0x1986 , 0x08E2
      */
-    0x4EE2,
-    0x46A2,
-    0x1986,
-    0x08E2,
+    {0x4EE2, 0x46A2, 0x1986, 0x08E2},
+    {0x4EE2, 0x46A2, 0x1986, 0x08E2},
+    {0x4EE2, 0x46A2, 0x1986, 0x08E2},
 };
-uint16_t *currentpalette;
-#ifndef RGB555_TO_RGB444_DEFINED
+static uint16_t *gbcPal = NULL;      // pointer to current CGB palette
+static uint16_t (*dmgPal)[4] = NULL; // pointer to current DMG palette
+static dmg_palette_type_t currentDmgPaletteType = DMG_PALETTE_GREENLCD;
 
-#define RGB555_TO_RGB444_DEFINED 1
-#endif
 #if ENABLE_SOUND
 #define AUDIO_BUFFER_SIZE (AUDIO_SAMPLES * sizeof(u_int32_t))
 uint16_t *audio_stream;
@@ -250,22 +260,23 @@ void savesram(char *romname, const char *savedir)
         f_close(&file);
     }
 }
+void emu_set_dmg_palette_type(dmg_palette_type_t dmg_palette_type)
+{
+    currentDmgPaletteType = dmg_palette_type;
+}
 int startemulation(uint8_t *rom, char *romname, const char *savedir, char *ErrorMessage, int USEHSTX)
 {
-    for (int i = 0 ; i < 3; i++) {
-        for (int j = 0; j < 4; j++) {
-            greyscalePalette444[i][j] = RGB555ToRGB444(greyscalePalette555[i][j]);
-            colorPalette444[i][j] = RGB555ToRGB444(colorPalette555[i][j]);
+    useHSTX = USEHSTX;
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            dmgGreyscalePalette444[i][j] = RGB555ToRGB444(dmgGreyscalePalette555[i][j]);
+            dmgColorPalette444[i][j] = RGB555ToRGB444(dmgColorPalette555[i][j]);
         }
     }
-    if (USEHSTX)
-    {
-        currentpalette = palette555;
-    }
-    else
-    {
-        currentpalette = palette444;
-    }
+    gbcPal = useHSTX ? gb.cgb.fixPalette : gb.cgb.fixPalette444;
+
 #if 0
     gb.wram = (uint8_t *)frens_f_malloc(WRAM_SIZE);
 	gb.vram = (uint8_t *)frens_f_malloc(VRAM_SIZE);
@@ -327,28 +338,24 @@ void __not_in_flash_func(lcd_draw_line)(struct gb_s *gb,
                                         const uint_fast8_t line)
 {
     WORD *buff = dvi_getlinebuffer(line);
-    for (int x = 0; x < LCD_WIDTH; x++)
-    {
-        if (gb->cgb.cgbMode)
-        { // CGB
-            #if !HSTX
-                buff[x] = gb->cgb.fixPalette444[pixels[x]];    
-            #else
-                buff[x] = gb->cgb.fixPalette[pixels[x]];
-            #endif
-        }
-        else
-        { // DMG
 
-            // uint8_t color_index = pixels[x] & 0x03; // Get the 2-bit color index
-            // buff[x] = currentpalette[color_index];
-             #if !HSTX
-                buff[x] = colorPalette444[(pixels[x] & LCD_PALETTE_ALL) >> 4][pixels[x] & 3];
-             #else
-                buff[x] = colorPalette555[(pixels[x] & LCD_PALETTE_ALL) >> 4][pixels[x] & 3];
-            #endif
+    if (gb->cgb.cgbMode)
+    { // CGB
+        for (int x = 0; x < LCD_WIDTH; x++)
+        {
+            buff[x] = gbcPal[pixels[x]];
         }
     }
+    else
+    { // DMG
+        for (int x = 0; x < LCD_WIDTH; x++)
+        {
+            // uint8_t color_index = pixels[x] & 0x03; // Get the 2-bit color index
+            // buff[x] = currentpalette[color_index]
+            buff[x] = dmgPal[(pixels[x] & LCD_PALETTE_ALL) >> 4][pixels[x] & 3];
+        }
+    }
+
     infogb_plot_line(line);
     //   /* If external callback provided, invoke it with current line. */
     //   if (dvi_drawline_cb) {
@@ -367,6 +374,19 @@ void emu_init_lcd()
 
 void emu_run_frame()
 {
+    switch (currentDmgPaletteType)
+    {
+    case DMG_PALETTE_GREENLCD:
+        dmgPal = useHSTX ? dmgGreenPalette555 : dmgGreenPalette444;
+        break;
+    case DMG_PALETTE_COLOR:
+        dmgPal = useHSTX ? dmgColorPalette555 : dmgColorPalette444;
+        break;
+    case DMG_PALETTE_GRAYSCALE:
+    default:
+        dmgPal = useHSTX ? dmgGreyscalePalette555 : dmgGreyscalePalette444;
+        break;
+    }
     gb_run_frame(&gb);
 #if ENABLE_SOUND
     // send audio buffer to playback device

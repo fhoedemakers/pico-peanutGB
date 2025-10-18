@@ -1,3 +1,4 @@
+
 #ifndef GB_H
 #define GB_H
 /*-------------------------------------------------------------------*/
@@ -21,6 +22,12 @@ typedef unsigned char  BYTE;
 #ifndef NULL
 #define NULL  0
 #endif /* !NULL */
+
+typedef enum {
+	DMG_PALETTE_GREENLCD,
+	DMG_PALETTE_COLOR,
+	DMG_PALETTE_GRAYSCALE
+} dmg_palette_type_t;
 extern uint16_t *audio_stream;
 extern int sample_size;
 extern uint8_t *GBaddress; // pointer to the GB ROM file
@@ -36,6 +43,7 @@ void stopemulation(char *romname, const char *savedir);
 void emu_init_lcd();
 void emu_run_frame();
 void emu_set_gamepad(uint8_t joypad);
+void emu_set_dmg_palette_type(dmg_palette_type_t palette_type); 
 WORD *dvi_getlinebuffer(uint_fast8_t line);
 void infogb_plot_line(uint_fast8_t line);
 void *frens_f_malloc(size_t size);
