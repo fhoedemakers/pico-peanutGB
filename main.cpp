@@ -419,6 +419,27 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
                 fps_enabled = !fps_enabled;
                 loadoverlay(); // reload overlay to show or hide fps
                 // printf("FPS: %s\n", fps_enabled ? "ON" : "OFF");
+            } else if (pushed & B)
+            {
+                // toggle DMG palette
+                settings.flags.dmgLCDPalette = (settings.flags.dmgLCDPalette + 1) % 3;
+                emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette);
+                printf("DMG LCD Palette: %d:", settings.flags.dmgLCDPalette);
+                switch ((dmg_palette_type_t)settings.flags.dmgLCDPalette)
+                {
+                case DMG_PALETTE_GREENLCD:
+                    printf(" Green\n");
+                    break;
+                case DMG_PALETTE_COLOR:
+                    printf(" Color\n");
+                    break;
+                case DMG_PALETTE_GRAYSCALE:
+                    printf(" Grayscale\n");
+                    break;
+                default:
+                    break;
+                }
+                Frens::savesettings();
             }
         }
         if (p1 & SELECT)
@@ -714,6 +735,7 @@ int main()
 
         printf("Initializing Game Boy Emulator\n");
         loadoverlay(); // load default overlay
+        emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette);
         uint8_t *rom = reinterpret_cast<unsigned char *>(ROM_FILE_ADDR);
         if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage, HSTX))
         {
