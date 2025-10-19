@@ -85,7 +85,9 @@ static uint16_t dmgGreenPalette555[3][4] = {
     {0x4EE2, 0x46A2, 0x1986, 0x08E2},
     {0x4EE2, 0x46A2, 0x1986, 0x08E2},
 };
+#if PEANUT_FULL_GBC_SUPPORT
 static uint16_t *gbcPal = NULL;      // pointer to current CGB palette
+#endif
 static uint16_t (*dmgPal)[4] = NULL; // pointer to current DMG palette
 static dmg_palette_type_t currentDmgPaletteType = DMG_PALETTE_GREENLCD;
 
@@ -276,8 +278,9 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
             dmgColorPalette444[i][j] = RGB555_TO_RGB444(dmgColorPalette555[i][j]);
         }
     }
+#if PEANUT_FULL_GBC_SUPPORT
     gbcPal = useHSTX ? gb.cgb.fixPalette : gb.cgb.fixPalette444;
-
+#endif
 #if 0
     gb.wram = (uint8_t *)frens_f_malloc(WRAM_SIZE);
 	gb.vram = (uint8_t *)frens_f_malloc(VRAM_SIZE);
@@ -339,7 +342,7 @@ void __not_in_flash_func(lcd_draw_line)(struct gb_s *gb,
                                         const uint_fast8_t line)
 {
     WORD *buff = dvi_getlinebuffer(line);
-
+#if PEANUT_FULL_GBC_SUPPORT
     if (gb->cgb.cgbMode)
     { // CGB
         for (int x = 0; x < LCD_WIDTH; x++)
@@ -349,13 +352,16 @@ void __not_in_flash_func(lcd_draw_line)(struct gb_s *gb,
     }
     else
     { // DMG
+#endif
         for (int x = 0; x < LCD_WIDTH; x++)
         {
             // uint8_t color_index = pixels[x] & 0x03; // Get the 2-bit color index
             // buff[x] = currentpalette[color_index]
             buff[x] = dmgPal[(pixels[x] & LCD_PALETTE_ALL) >> 4][pixels[x] & 3];
         }
+#if PEANUT_FULL_GBC_SUPPORT
     }
+#endif
 
     infogb_plot_line(line);
     //   /* If external callback provided, invoke it with current line. */
