@@ -12,7 +12,7 @@ IF(NOT CMAKE_BUILD_TYPE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 message("* Current build type is : ${CMAKE_BUILD_TYPE}")
 if (NOT HW_CONFIG)
-    set(HW_CONFIG 8 CACHE STRING "Select the hardware configuration for your board")      
+    set(HW_CONFIG 2 CACHE STRING "Select the hardware configuration for your board")      
 endif()
 if (NOT USE_HSTX)
     set(USE_HSTX 1 CACHE STRING "Use HSTX for display output when possible")
@@ -102,7 +102,9 @@ target_compile_definitions(${projectname} PUBLIC
     GPIOHSTXCK=${GPIOHSTXCK} # HSTX clock pin positive
     GPIOHSTXINVERTED=${GPIOHSTXINVERTED} # Set to 1 if HSTX pins are inverted: D- = D+ -1
     ENABLE_VU_METER=${ENABLE_VU_METER} # Enable VU meter (fruitjam NeoPixel leds)
-    ENABLE_SOUND=1)
+    ENABLE_SOUND=1
+    PEANUT_FULL_GBC_SUPPORT=1
+    )
 if(NOT PICO_PLATFORM STREQUAL "rp2040")
     message(STATUS "Using PICO_PIO_USE_GPIO_BASE=1 for non-rp2040 platforms.")
     target_compile_definitions(${projectname} PRIVATE
@@ -176,7 +178,7 @@ add_subdirectory(pico_lib/dvi)
 add_subdirectory(pico_lib/util)
 add_subdirectory(pico_shared)
 add_subdirectory(tusb_xinput xinput_host)
- target_link_options(${projectname} PRIVATE -Xlinker --print-memory-usage --data-sections)
+target_link_options(${projectname} PRIVATE -Xlinker --print-memory-usage --data-sections)
 pico_add_extra_outputs(${projectname})
 
 
