@@ -7,7 +7,7 @@ The code for HDMI output is based on [Shuichi Takano's Pico-InfoNes project](htt
 Put your DMG Game Boy (.gb) or Game Boy Color (.gbc) rom files and optional metadata on a FAT32 or exFAT formatted SD card. You can organize the roms in directories. A menu is displayed on which you can select the rom to play.
 
 > [!NOTE]
-> The emulator runs well on the Raspberry Pi Pico 2, but is too slow on the original Raspberry Pi Pico or other RP2040 based boards. Only releases for Pico 2 (RP2350) are available.
+> The emulator runs well on the Raspberry Pi Pico 2, but is too slow on the original Raspberry Pi Pico or other RP2040 based boards. Only releases for Pico 2 (RP2350) are available. Some Game Boy color games have image and sound glitches.
 
 ## System requirements - What do yo need?
 
