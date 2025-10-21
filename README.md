@@ -7,7 +7,7 @@ The code for HDMI output is based on [Shuichi Takano's Pico-InfoNes project](htt
 Put your DMG Game Boy (.gb) or Game Boy Color (.gbc) rom files and optional [metadata](#using-metadata) on a FAT32 or exFAT formatted SD card. You can organize the roms in directories. A menu is displayed on which you can select the rom to play.
 
 > [!NOTE]
-> The emulator runs well on the Raspberry Pi Pico 2, but is too slow on the original Raspberry Pi Pico or other RP2040 based boards. Only releases for Pico 2 (RP2350) are available. Some Game Boy color games have image and sound glitches.
+> The emulator runs well on the Raspberry Pi Pico 2, but is too slow on the original Raspberry Pi Pico or other RP2040 based boards. Only releases for Pico 2 (RP2350) are available. Some Game Boy Color games have image and sound glitches.
 
 ## System requirements - What do yo need?
 
@@ -87,13 +87,13 @@ Download the metadata pack from the [releases page](https://github.com/fhoedemak
     - Press **SELECT** → show full game description.  
     - Press **Button1** → return to menu.  
     - Press **START** or **Button2** → start the game.
-- In-game toggle between default bezel, random bezel and themed bezel: SELECT + Button1
+  - In-game toggle between default bezel, random bezel and themed bezel: SELECT + Button1
 
 | Default | Random | themed |
 | ------- | ------ | ------ |
 | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/8d15a58f-9343-47ea-b940-58784d7a6071" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/a6ed915f-315e-4813-8803-5b7e21bb041e" />  | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/ed6fbd45-ef3d-4339-8f95-3092da6e8f95" />  |
 
-- In-game playing a DMG Game Boy game only. (No Gameboy color). Toggle between Green, Color and greyscale palette: START + Button1
+  - In-game playing a DMG Game Boy game only. (No Gameboy color). Toggle between Green, Color and greyscale palette: START + Button1
 
 | green | color | grayscale |
 | ------- | ------ | ------ |
