@@ -4,7 +4,7 @@
 This software is a port of [Peanut-GB](https://github.com/deltabeard/Peanut-GB), a DMG and Game Boy Color emulator for RP2350 based microcontroller boards like the RaspberryPi Pico 2. Sound and video are ouput over HDMI.
 The code for HDMI output is based on [Shuichi Takano's Pico-InfoNes project](https://github.com/shuichitakano/pico-infones) which in turn is based on [PicoDVI](https://github.com/Wren6991/PicoDVI).
 
-Put your DMG Game Boy (.gb) or Game Boy Color (.gbc) rom files and optional metadata on a FAT32 or exFAT formatted SD card. You can organize the roms in directories. A menu is displayed on which you can select the rom to play.
+Put your DMG Game Boy (.gb) or Game Boy Color (.gbc) rom files and optional [metadata](#using-metadata) on a FAT32 or exFAT formatted SD card. You can organize the roms in directories. A menu is displayed on which you can select the rom to play.
 
 > [!NOTE]
 > The emulator runs well on the Raspberry Pi Pico 2, but is too slow on the original Raspberry Pi Pico or other RP2040 based boards. Only releases for Pico 2 (RP2350) are available. Some Game Boy color games have image and sound glitches.
