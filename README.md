@@ -31,16 +31,7 @@ The binary specific for your config can be downloaded from the [releases](https:
 
 TODO
 
-## Using metadata.
 
-Download the metadata pack from the [releases page](https://github.com/fhoedemakers/pico-smsplus/releases/latest/download/SMSPlusMetadata.zip) It contains box art, game info and themed borders/bezels for many games. The metadata is used in the menu to show box art and game info when a rom is selected.  When the screensaver is started, random box art is shown. When in-game, themed borders/bezels are shown around the game screen.
-- Download pack [here](https://github.com/fhoedemakers/pico-smsplus/releases/latest/download/SMSPlusMetadata.zip).  
-  - Extract the zip contents to the **root of the SD card**.  
-  - In the menu:  
-    - Highlight a game and press **START** → show cover art and metadata.  
-    - Press **SELECT** → show full game description.  
-    - Press **B** → return to menu.  
-    - Press **START** or **A** → start the game.
 
 # Gamepad and keyboard usage
 
@@ -83,6 +74,35 @@ The colors in the menu can be changed and saved:
   - S: Start
   - Z: Button1
   - X: Button2
+
+## Using metadata.
+
+<img width="640" height="360" alt="image" src="https://github.com/user-attachments/assets/f6aeb7cd-702b-4064-a69c-e8de36dcb6be" />
+
+Download the metadata pack from the [releases page](https://github.com/fhoedemakers/pico-peanutGB/releases/latest/download/GBMetadata.zip) It contains box art, game info and themed borders/bezels for many games. The metadata is used in the menu to show box art and game info when a rom is selected.  When the screensaver is started, random box art is shown. When in-game, themed borders/bezels are shown around the game screen.
+- Download pack [here](https://github.com/fhoedemakers/pico-peanutGB/releases/latest/download/GBMetadata.zip).  
+  - Extract the zip contents to the **root of the SD card**.  
+  - In the menu:  
+    - Highlight a game and press **START** → show cover art and metadata.  
+    - Press **SELECT** → show full game description.  
+    - Press **Button1** → return to menu.  
+    - Press **START** or **Button2** → start the game.
+- In-game toggle between default bezel, random bezel and themed bezel: SELECT + Button1
+
+| Default | Random | themed |
+| ------- | ------ | ------ |
+| <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/8d15a58f-9343-47ea-b940-58784d7a6071" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/a6ed915f-315e-4813-8803-5b7e21bb041e" />  | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/ed6fbd45-ef3d-4339-8f95-3092da6e8f95" />  |
+
+- In-game playing a DMG Game Boy game only. (No Gameboy color). Toggle between Green, Color and greyscale palette: START + Button1
+
+| green | color | grayscale |
+| ------- | ------ | ------ |
+| <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/537a38b9-350b-470d-8a90-22ad86101fac" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/9cadbdad-235e-45b9-bcfe-08f8b7d5caa0" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/62d820dc-6cc6-4ebf-889a-05f279109c85" /> |
+
+
+
+ 
+
  
 ## Building from source
 
