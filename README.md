@@ -42,7 +42,7 @@ Download the metadata pack from the [releases page](https://github.com/fhoedemak
     - Press **B** → return to menu.  
     - Press **START** or **A** → start the game.
 
-# Gamepad usage
+# Gamepad and keyboard usage
 
 |     | (S)NES | Genesis | XInput | Dual Shock/Sence |
 | --- | ------ | ------- | ------ | ---------------- |
@@ -50,8 +50,8 @@ Download the metadata pack from the [releases page](https://github.com/fhoedemak
 | Button2 | A  |    B    |   B    |   Circle         |
 | Select  | select | Mode or C | Select | Select     |
 
-## Menu
-Gamepad buttons:
+## in menu
+
 - UP/DOWN: Next/previous item in the menu.
 - LEFT/RIGHT: next/previous page.
 - Button2 : Open folder/flash and start game.
@@ -66,7 +66,7 @@ The colors in the menu can be changed and saved:
 
 
 ## Emulator (in game)
-Gamepad buttons:
+
 - SELECT + START, Xbox button: Resets back to the SD Card menu. Game saves are saved to the SD card.
 - SELECT + UP/SELECT + DOWN: switches screen modes.
 - SELECT + Button1: When metadata pack is installed on SDcard: Toggle between default bezel, random bezel or themed bezel. (according to the selected rom)
