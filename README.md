@@ -46,6 +46,8 @@ Below the button mapping for different controllers. You can also use a USB-keybo
 | Button2 | A  |    B    |   B    |   Circle         |
 | Select  | select | Mode or C | Select | Select     |
 
+It is not advised to use a NES controller because it lacks enough buttons.
+
 ## in menu
 
 - UP/DOWN: Next/previous item in the menu.
