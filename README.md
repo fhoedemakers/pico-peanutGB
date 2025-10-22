@@ -11,9 +11,14 @@ Put your DMG Game Boy (.gb) or Game Boy Color (.gbc) rom files and optional [met
 
 ## System requirements - What do yo need?
 
+> [!NOTE]
+> For detailed instructions and specific configurations, see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus). 
+
+### Hardware
+
 A **Raspberry Pi Pico 2** on a Pimoroni Pico DV Deno Base, or a **Raspberry Pi Pico 2** on a breadboard or PCB. The emulator is too slow on the original Pico or other RP2040 based boards.
 
-Other boards:
+Other boards that can be used:
 - [Adafruit Fruit Jam](https://www.adafruit.com/product/6200)
 - [Adafruit Metro RP2350](https://www.adafruit.com/product/6003) or [Adafruit Metro RP2350 with PSRAM](https://www.adafruit.com/product/6267)
 - [Pimoroni Pico Plus 2](https://shop.pimoroni.com/products/pimoroni-pico-plus-2?variant=42092668289107)
@@ -24,8 +29,6 @@ Other boards:
 The binary specific for your config can be downloaded from the [releases](https://github.com/fhoedemakers/pico-peanutGB/releases/latest) page.
 
 
-> [!NOTE]
-> For detailed instructions and specific configurations, see the [Pico-InfonesPlus sister project](https://github.com/fhoedemakers/pico-infonesPlus). 
 
 ## Video
 
@@ -34,6 +37,8 @@ TODO
 
 
 # Gamepad and keyboard usage
+
+Below the button mapping for different controllers. You can also use a USB-keyboard.
 
 |     | (S)NES | Genesis | XInput | Dual Shock/Sense |
 | --- | ------ | ------- | ------ | ---------------- |
@@ -61,6 +66,7 @@ The colors in the menu can be changed and saved:
 - SELECT + START, Xbox button: Resets back to the SD Card menu. Game saves are saved to the SD card.
 - SELECT + UP/SELECT + DOWN: switches screen modes.
 - SELECT + Button1: When metadata pack is installed on SDcard: Toggle between default bezel, random bezel or themed bezel. (according to the selected rom)
+- START + Button1: When playing a DMG Game, toggle between green, color and greyscale palette.
 - START + Button2 : Toggle framerate display
 - **Pimoroni Pico DV Demo Base only**: SELECT + LEFT: Switch audio output to the connected speakers on the line-out jack of the Pimoroni Pico DV Demo Base. The speaker setting will be remembered when the emulator is restarted.
 - **Fruit Jam Only** 
@@ -87,32 +93,15 @@ Download the metadata pack from the [releases page](https://github.com/fhoedemak
     - Press **SELECT** → show full game description.  
     - Press **Button1** → return to menu.  
     - Press **START** or **Button2** → start the game.
-  - In-game toggle between default bezel, random bezel and themed bezel: SELECT + Button1
+  - In-game toggle between default bezel, random bezel and themed bezel: **SELECT** + **Button1**
 
 | Default | Random | themed |
 | ------- | ------ | ------ |
 | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/8d15a58f-9343-47ea-b940-58784d7a6071" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/a6ed915f-315e-4813-8803-5b7e21bb041e" />  | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/ed6fbd45-ef3d-4339-8f95-3092da6e8f95" />  |
 
-  - In-game playing a DMG Game Boy game only. (No Gameboy color). Toggle between Green, Color and greyscale palette: START + Button1
+  - In-game playing a DMG Game Boy game only. (Not Gameboy color). Toggle between Green, Color and greyscale palette: **START** + **Button1**
 
 | green | color | grayscale |
 | ------- | ------ | ------ |
 | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/537a38b9-350b-470d-8a90-22ad86101fac" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/9cadbdad-235e-45b9-bcfe-08f8b7d5caa0" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/62d820dc-6cc6-4ebf-889a-05f279109c85" /> |
 
-
-
- 
-
- 
-## Building from source
-
-When using Visual Studio code, make sure to build in Release or RelWithDbinfo mode, as the emulator is too slow in the other modes.
-
-Build shell scripts are available:
-
-- build.sh : Builds .uf2 for the Pimoroni DV Deno Base
-- build_alternate.sh: For the PCB or breadboard variant
-- build_feather_dvi.sh: For the Adafruit feather
-- build_ws_rp2040_pizero.sh: For the Wavehare device
-
-The _debug.sh scripts can be use to create a debug build for each system.
