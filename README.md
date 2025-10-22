@@ -26,7 +26,7 @@ Other boards that can be used:
   The PSRAM on the board is used in stead of flash to load the roms from SD.
 
 
-The binary specific for your config can be downloaded from the [releases](https://github.com/fhoedemakers/pico-peanutGB/releases/latest) page.
+The binary specific for your config and PCB gerber files can be downloaded from the [releases](https://github.com/fhoedemakers/pico-peanutGB/releases/latest) page.
 
 
 
