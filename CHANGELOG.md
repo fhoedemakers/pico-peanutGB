@@ -19,10 +19,6 @@
   - Controller options:  
     - **USB gamepad** on USB 1.  
     - **Wii Classic controller** via [Adafruit Wii Nunchuck Adapter](https://www.adafruit.com/product/4836) on the STEMMA QT port.  
-  - Two-player mode:  
-    - Player 1: USB gamepad (USB 1).  
-    - Player 2: Wii Classic controller.  
-    - Dual USB (USB 1 + USB 2) multiplayer is **not yet supported**.  
   - Scanlines can be toggled with **SELECT + UP**.  
   - NeoPixel leds act as a VU meter. Can be toggled on or of via Button2 on the Fruit Jam, or SELECT + RIGHT on the controller.
 
@@ -34,7 +30,7 @@
 - Added support for Waveshare RP2350-USBA with PCB. More info and build guide at: https://www.instructables.com/PicoNES-RaspberryPi-Pico-Based-NES-Emulator/
 - Added support for [Spotpear HDMI](https://spotpear.com/index/product/detail/id/1207.html) board.
 
-- **RP2350 Only** Framebuffer implemented in SRAM. This eliminates the red flicker during slow operations, such as SD card I/O.
+- Framebuffer implemented in SRAM. This eliminates the red flicker during slow operations, such as SD card I/O.
 
 - **Cover art and metadata support**:  
   - Download pack [here](https://github.com/fhoedemakers/pico-peanutGB/releases/latest/download/GBMetadata.zip).  
