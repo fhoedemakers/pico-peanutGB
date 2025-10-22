@@ -106,7 +106,7 @@ For the latest two player PCB 2.0, you need:
 
 | Board | Binary | Readme |
 |:--|:--|:--|
-| Waveshare RP2350-Zero | [PicoPeanutGB_WaveShareRP2350PiZero_arm_piousb.uf2](https://github.com/fhoedemakers/pico-peanutGB/releases/latest/download/PicoPeanutGB_WaveShareRP2350ZeroWithPCB_arm.uf2) | [Readme](https://github.com/fhoedemakers/pico-infonesPlus/blob/main/README.md#pcb-with-waveshare-rp2040rp2350-zero) |
+| Waveshare RP2350-Zero | [PicoPeanutGB_WaveShareRP2350ZeroWithPCB_arm.uf2](https://github.com/fhoedemakers/pico-peanutGB/releases/latest/download/PicoPeanutGB_WaveShareRP2350ZeroWithPCB_arm.uf2) | [Readme](https://github.com/fhoedemakers/pico-infonesPlus/blob/main/README.md#pcb-with-waveshare-rp2040rp2350-zero) |
 
 PCB: [Gerber_PicoNES_Mini_PCB_v2.0.zip](https://github.com/fhoedemakers/pico-peanutGB/releases/latest/download/Gerber_PicoNES_Mini_PCB_v2.0.zip)
 
@@ -140,6 +140,7 @@ PCB: [Gerber_PicoNES_Micro_v1.2.zip](https://github.com/fhoedemakers/pico-peanut
 
 
 Extract the zip file to the root folder of the SD card. Select a game in the menu and press START to show more information and box art. Works for most official released games. Screensaver shows floating random cover art.
+
 
 
 
