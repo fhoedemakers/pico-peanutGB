@@ -47,6 +47,7 @@ Below the button mapping for different controllers. You can also use a USB-keybo
 | Select  | select | Mode or C | Select | Select     |
 
 It is not advised to use a NES controller because it lacks enough buttons.
+
 (*) On SNES USB-controller press Y once to activate the B-button.
 
 ## in menu
