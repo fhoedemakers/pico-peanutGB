@@ -105,3 +105,10 @@ Download the metadata pack from the [releases page](https://github.com/fhoedemak
 | ------- | ------ | ------ |
 | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/537a38b9-350b-470d-8a90-22ad86101fac" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/9cadbdad-235e-45b9-bcfe-08f8b7d5caa0" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/62d820dc-6cc6-4ebf-889a-05f279109c85" /> |
 
+## Building from source
+
+Use the bld.sh script to build the project. Build using Ubuntu Linux or WSL on Windows. See the Pico SDK installation instructions on how to set up the build environment.
+
+Use ./bld.sh --h for options.
+
+The resulting .uf2 file will be in the releases/ folder. Copy it to the Pico when in bootloader mode.
