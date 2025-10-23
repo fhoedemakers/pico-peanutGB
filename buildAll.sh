@@ -24,20 +24,34 @@ fi
 # 	./bld.sh -c $HWCONFIG
 # done
 # build for Pico 2 arm and risc-v
-HWCONFIGS="1 2 5"
+# build for Pico 2 (w) -arm-s
+# No pico2_w binaries for HWConfig 1 (#132)
+# no pico_w binaries for HWConfig 2 (#136)
+# No build for WaveShare RP2350-PiZero (#7)
+HWCONFIGS="1 2 5 6 7 8 9 10"
 for HWCONFIG in $HWCONFIGS
 do
-	./bld.sh -c $HWCONFIG -2
-	./bld.sh -c $HWCONFIG -2 -w
-	# No build for Adafruit Metro RP2350 because sdcard driver not working in this config
-	if [ $HWCONFIG -ne 5 ]; then
-		./bld.sh -c $HWCONFIG -r
-		./bld.sh -c $HWCONFIG -r -w
+	./bld.sh -c $HWCONFIG -2 || exit 1
+	# don't build for w when HWCONFIG=1, 5, 6, 7 and 8
+	if [[ $HWCONFIG -eq 2 ]]; then
+		./bld.sh -c $HWCONFIG -2 -w || exit 1
 	fi
 done
+# # build for Pico 2 -riscv
+# # No pico2_w binaries for HWConfig 1 (#132)
+# # No risc binaries for Metro RP2350 and Fruit Jam (SD card not working)
+# HWCONFIGS="1 2 7 9 10"
+# for HWCONFIG in $HWCONFIGS
+# do
+# 	./bld.sh -c $HWCONFIG -r -t $PICO_SDK_PATH/toolchain/RISCV_RPI_2_0_0_2/bin || exit 1
+# 	# don't build for w when HWCONFIG=1 (#132), 5 and 6, 7 and 9
+# 	if [[ $HWCONFIG -ne 1 && $HWCONFIG -ne 5 && $HWCONFIG -ne 6 && $HWCONFIG -ne 7 && $HWCONFIG -ne 9  && $HWCONFIG -ne 10 ]]; then
+# 	 	./bld.sh -c $HWCONFIG -r -t $PICO_SDK_PATH/toolchain/RISCV_RPI_2_0_0_2/bin -w || exit 1
+# 	fi
+# done	
 if [ -z "$(ls -A releases)" ]; then
 	echo "No UF2 files found in releases folder"
-	exit
+	exit 1
 fi
 for UF2 in releases/*.uf2
 do
@@ -45,3 +59,4 @@ do
 	picotool info $UF2
 	echo " "
 done
+

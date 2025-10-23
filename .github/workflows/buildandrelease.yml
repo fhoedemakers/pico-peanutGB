@@ -9,9 +9,7 @@ on:
           - "v*.*-alpha"
           - "v*.*.*"
           - "v*.*"
-    #     branches: [ main ]
-    # pull_request:
-    #     branches: [ main ] 
+    workflow_dispatch:
 
 # Must match the project() name in CMakeLists.txt
 env:
@@ -27,12 +25,6 @@ jobs:
         runs-on: self-hosted
         name: Build and create release
         steps:
-          
-          # - name: Install dependencies
-          #   run: |
-          #        sudo apt update && \
-          #        sudo apt install -y git python3 && \
-          #        sudo apt install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential libusb-1.0-0-dev
                  
           - name: Check out this repository with submodules
             uses: actions/checkout@v4
@@ -58,48 +50,27 @@ jobs:
                  grep "pico_set_program_version" CMakeLists.txt
                  grep SWVERSION pico_shared/menu.h
 
-          # - name: Install Pico SDk
-          #   run: |
-          #        cd $HOME && \
-          #        git clone https://github.com/raspberrypi/pico-sdk.git --branch master && \
-          #        cd pico-sdk/ && \
-          #        git submodule update --init
-
-          # - name: Install picotool
-          #   run: |
-          #        cd $HOME && \
-          #        export PICO_SDK_PATH=$HOME/pico-sdk && \
-          #        git clone https://github.com/raspberrypi/picotool.git --branch master && \
-          #        cd picotool/ && \
-          #        mkdir build && \
-          #        cd build && \
-          #        cmake .. && \
-          #        make
-
           - name: Build all the .uf2 files
             run: |            
                  chmod +x build*.sh bld.sh || exit 1
-                 export PICO_SDK_PATH=$HOME/pico2/pico-sdk
+                 export PICO_SDK_PATH=$HOME/pico-sdk
+                 export PICO_PIO_USB_PATH=$HOME/Pico-PIO-USB
                  ./buildAll.sh
 
-          # - name: Show release info using picotool
-          #   run: |
-          #        export PICO_SDK_PATH=$HOME/pico-sdk && \
-          #        $HOME/picotool/build/picotool info releases/${{ env.APP_NAME }}AdaFruitDVISD.uf2 && \
-          #        echo "-----------------------------" && \
-          #        $HOME/picotool/build/picotool info releases/${{ env.APP_NAME }}FeatherDVI.uf2 && \
-          #        echo "-----------------------------" && \
-          #        $HOME/picotool/build/picotool info releases/${{ env.APP_NAME }}PimoroniDV.uf2 && \
-          #        echo "-----------------------------" && \
-          #        $HOME/picotool/build/picotool info releases/${{ env.APP_NAME }}WsRP2040PiZero.uf2 
+          - name: Copy GBMetadata.zip to workspace
+            run: |
+              cp /datalocal/upload/pico-infonesPlus/GBMetadata.zip releases/GBMetadata.zip
 
           - name: Create release
             uses: softprops/action-gh-release@v2
-            if: startsWith(github.ref, 'refs/tags/')
+            if: startsWith(github.ref, 'refs/tags/')  && github.event_name == 'push'
             with:
                 files: |
                        releases/*.uf2
-                       PCB/pico_nesPCB_v2.1.zip      
+                       PCB/pico_nesPCB_v2.1.zip  
+                       PCB/Gerber_PicoNES_Mini_PCB_v2.0.zip
+                       PCB/Gerber_PicoNES_Micro_v1.2.zip
+                       releases/GBMetadata.zip       
                 body_path: CHANGELOG.md
           
          
