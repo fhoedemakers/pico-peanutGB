@@ -121,13 +121,13 @@ void loadoverlay()
 #endif
     ;
     int fldIndex;
-    if (settings.flags.borderMode == DEFAULTBORDER)
+    if (settings.flags.borderMode == FrensSettings::DEFAULTBORDER)
     {
         Frens::loadOverLay(nullptr, overlay);
         return;
     }
 
-    if (settings.flags.borderMode == THEMEDBORDER)
+    if (settings.flags.borderMode == FrensSettings::THEMEDBORDER)
     {
         snprintf(CRC, sizeof(CRC), "%08X", Frens::getCrcOfLoadedRom());
         snprintf(CHOSEN, (FF_MAX_LFN + 1) * sizeof(char), "/metadata/GB/Images/Bezels/%c/%s%s", CRC[0], CRC, FILEXTFORSEARCH);
@@ -439,7 +439,7 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
                 default:
                     break;
                 }
-                Frens::savesettings();
+                FrensSettings::savesettings();
             }
         }
         if (p1 & SELECT)
@@ -449,7 +449,7 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
                 // toggle settings.bordermode between enum values
                 settings.flags.borderMode = (settings.flags.borderMode + 1) % 3; // skip random border for now
                 printf("Border mode: %d\n", settings.flags.borderMode);
-                Frens::savesettings();
+                FrensSettings::savesettings();
                 loadoverlay();
             }
             // else if (pushed & A)
@@ -494,7 +494,7 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
 #else
                 settings.flags.useExtAudio = 0;
 #endif
-                Frens::savesettings();
+                FrensSettings::savesettings();
             }
 #if ENABLE_VU_METER
             else if (pushed & RIGHT)
@@ -507,7 +507,7 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
         if (toggleVUMeter || isVUMeterToggleButtonPressed())
         {
             settings.flags.enableVUMeter = !settings.flags.enableVUMeter;
-            Frens::savesettings();
+            FrensSettings::savesettings();
             // printf("VU Meter %s\n", settings.flags.enableVUMeter ? "enabled" : "disabled");
             turnOffAllLeds();
         }
@@ -711,7 +711,7 @@ int main()
     printf("Stack size: %d bytes\n", PICO_STACK_SIZE);
     printf("==========================================================================================\n");
     printf("Starting up...\n");
-
+    FrensSettings::initSettings(FrensSettings::emulators::GAMEBOY);
     isFatalError = !Frens::initAll(selectedRom, CPUFreqKHz, MARGINTOP, MARGINBOTTOM, 512 * 8, false, true);
 #if !HSTX
     if (settings.screenMode != ScreenMode::NOSCANLINE_1_1 && settings.screenMode != ScreenMode::SCANLINE_1_1)
