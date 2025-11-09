@@ -520,6 +520,15 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
 #endif
                 FrensSettings::savesettings();
             }
+#if ENABLE_VU_METER
+            else if (pushed & RIGHT)
+            {
+                settings.flags.enableVUMeter = !settings.flags.enableVUMeter;
+                FrensSettings::savesettings();
+                // printf("VU Meter %s\n", settings.flags.enableVUMeter ? "enabled" : "disabled");
+                turnOffAllLeds();
+            }
+#endif
         }
 
         prevButtons[i] = v;
