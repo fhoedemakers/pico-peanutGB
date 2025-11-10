@@ -91,9 +91,9 @@ Download the metadata pack from the [releases page](https://github.com/fhoedemak
     - Press **SELECT** → show full game description.  
     - Press **Button1** → return to menu.  
     - Press **START** or **Button2** → start the game.
-  - In-game toggle between default bezel, random bezel and themed bezel: **SELECT** + **Button1**
+  - In-game toggle between different border modes: **SELECT** + **Button1**
 
-| Default | Random | themed |
+| Super Gameboy Default | Super Gameboy Random | Game-Specific |
 | ------- | ------ | ------ |
 | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/8d15a58f-9343-47ea-b940-58784d7a6071" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/a6ed915f-315e-4813-8803-5b7e21bb041e" />  | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/ed6fbd45-ef3d-4339-8f95-3092da6e8f95" />  |
 
