@@ -57,13 +57,7 @@ It is not advised to use a NES controller because it lacks enough buttons.
 - Button2 : Open folder/flash and start game.
 - Button1 : Back to parent folder.
 - START: Show metadata and box art (when available). 
-
-The colors in the menu can be changed and saved:
-  - Select + Up/Down changes the foreground color.
-  - Select + Left/Right changes the background color.
-  - Select + Button2 saves the colors. Screen will flicker when saved.
-  - Select + Button1 resets the colors to default. (Black on white)
-
+- SELECT: Opens a setting menu. Here you can change settings like screen mode, scanlines, framerate display, menu colors and other board specific settings. Settings can also be changed in-game by pressing some button combinations as explained below.
 
 ## Emulator (in game)
 
