@@ -19,7 +19,7 @@
 #include "FrensHelpers.h"
 #include "settings.h"
 #include "FrensFonts.h"
-
+#include "menu_settings.h"
 #include "mytypes.h"
 #include "gb.h"
 #include "vumeter.h"
@@ -28,14 +28,40 @@
 #define CPUKFREQKHZ 252000
 #endif
 
+// Visibility configuration for options menu (NES specific)
+// 1 = show option line, 0 = hide.
+// Order must match enum in menu_options.h
+const uint8_t g_settings_visibility[MOPT_COUNT] = {
+    0,                               // Exit Game, or back to menu. Always visible when in-game.
+    !HSTX,                           // Screen Mode (only when not HSTX)
+    HSTX,                            // Scanlines toggle (only when HSTX)
+    1,                               // FPS Overlay
+    0,                               // Audio Enable
+    0,                               // Frame Skip
+    (EXT_AUDIO_IS_ENABLED && !HSTX), // External Audio
+    1,                               // Font Color
+    1,                               // Font Back Color
+    ENABLE_VU_METER,                 // VU Meter
+    (HW_CONFIG == 8),                // Fruit Jam Internal Speaker
+    1,                               // DMG Palette (NES emulator does not use GameBoy palettes)
+    1,                               // Border Mode (Super Gameboy style borders not applicable for NES)
+    0,                               // Rapid Fire on A
+    0                                // Rapid Fire on B
+
+};
+const uint8_t g_available_screen_modes[] = {
+        0,   // SCANLINE_8_7,
+        0,  // NOSCANLINE_8_7,
+        1,  // SCANLINE_1_1,
+        1   //NOSCANLINE_1_1
+};
 
 extern const unsigned char EmuOverlay_444[];
 extern const unsigned char EmuOverlay_555[];
 char *romName;
-
+bool showSettings = false;
 bool isFatalError = false;
 
-static bool fps_enabled = false;
 static uint32_t start_tick_us = 0;
 static uint32_t fps = 0;
 static char fpsString[3] = "00";
@@ -62,7 +88,10 @@ constexpr uint32_t CPUFreqKHz = CPUKFREQKHZ; // 252000;
 dvi::DVI::LineBuffer *currentLineBuffer_{};
 #endif
 WORD *currentLineBuf{nullptr};
-
+#if WII_PIN_SDA >= 0 and WII_PIN_SCL >= 0
+// Cached Wii pad state updated once per frame in ProcessAfterFrameIsRendered()
+static uint16_t wiipad_raw_cached = 0;
+#endif
 #if 0
 void __not_in_flash_func(processaudio)()
 {
@@ -121,13 +150,13 @@ void loadoverlay()
 #endif
     ;
     int fldIndex;
-    if (settings.flags.borderMode == DEFAULTBORDER)
+    if (settings.flags.borderMode == FrensSettings::DEFAULTBORDER)
     {
         Frens::loadOverLay(nullptr, overlay);
         return;
     }
 
-    if (settings.flags.borderMode == THEMEDBORDER)
+    if (settings.flags.borderMode == FrensSettings::THEMEDBORDER)
     {
         snprintf(CRC, sizeof(CRC), "%08X", Frens::getCrcOfLoadedRom());
         snprintf(CHOSEN, (FF_MAX_LFN + 1) * sizeof(char), "/metadata/GB/Images/Bezels/%c/%s%s", CRC[0], CRC, FILEXTFORSEARCH);
@@ -357,9 +386,6 @@ static int rapidFireMask[2]{};
 static int rapidFireCounter = 0;
 void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed, char *gamepadType = nullptr)
 {
-#if ENABLE_VU_METER
-    bool toggleVUMeter = false;
-#endif
     // pwdPad1 and pwdPad2 are only used in menu and are only set on first push
     *pdwPad1 = *pdwPad2 = *pdwSystem = 0;
     unsigned long pushed;
@@ -387,7 +413,7 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
 #endif
 
 #if WII_PIN_SDA >= 0 and WII_PIN_SCL >= 0
-            nespadbuttons |= wiipad_read();
+            nespadbuttons |= wiipad_raw_cached;
 #endif
             if (nespadbuttons > 0)
             {
@@ -416,7 +442,8 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
             // Toggle frame rate display
             if (pushed & A)
             {
-                fps_enabled = !fps_enabled;
+                settings.flags.displayFrameRate = !settings.flags.displayFrameRate;
+                FrensSettings::savesettings();
                 loadoverlay(); // reload overlay to show or hide fps
                 // printf("FPS: %s\n", fps_enabled ? "ON" : "OFF");
             } else if (pushed & B)
@@ -439,7 +466,7 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
                 default:
                     break;
                 }
-                Frens::savesettings();
+                FrensSettings::savesettings();
             }
         }
         if (p1 & SELECT)
@@ -447,9 +474,9 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
             if (pushed & B)
             {
                 // toggle settings.bordermode between enum values
-                settings.flags.borderMode = (settings.flags.borderMode + 1) % 3; // skip random border for now
+                settings.flags.borderMode = (settings.flags.borderMode + 1) % 3; 
                 printf("Border mode: %d\n", settings.flags.borderMode);
-                Frens::savesettings();
+                FrensSettings::savesettings();
                 loadoverlay();
             }
             // else if (pushed & A)
@@ -458,8 +485,9 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
             // }
             else if (pushed & START)
             {
-                reset = true;
-                printf("Reset pressed\n");
+                // reset = true;
+                // printf("Reset pressed\n");
+                showSettings = true;
             }
             else if (pushed & UP)
             {
@@ -494,24 +522,19 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
 #else
                 settings.flags.useExtAudio = 0;
 #endif
-                Frens::savesettings();
+                FrensSettings::savesettings();
             }
 #if ENABLE_VU_METER
             else if (pushed & RIGHT)
             {
-                toggleVUMeter = true;
+                settings.flags.enableVUMeter = !settings.flags.enableVUMeter;
+                FrensSettings::savesettings();
+                // printf("VU Meter %s\n", settings.flags.enableVUMeter ? "enabled" : "disabled");
+                turnOffAllLeds();
             }
 #endif
         }
-#if ENABLE_VU_METER
-        if (toggleVUMeter || isVUMeterToggleButtonPressed())
-        {
-            settings.flags.enableVUMeter = !settings.flags.enableVUMeter;
-            Frens::savesettings();
-            // printf("VU Meter %s\n", settings.flags.enableVUMeter ? "enabled" : "disabled");
-            turnOffAllLeds();
-        }
-#endif
+
         prevButtons[i] = v;
         // return only on first push
         if (pushed)
@@ -544,7 +567,7 @@ int ProcessAfterFrameIsRendered(bool frommenu)
     // nespad_read_finish(); // Sets global nespad_state var
     tuh_task();
     // Frame rate calculation
-    if (fps_enabled)
+    if (settings.flags.displayFrameRate)
     {
         // calculate fps and round to nearest value (instead of truncating/floor)
         uint32_t tick_us = Frens::time_us() - start_tick_us;
@@ -553,7 +576,30 @@ int ProcessAfterFrameIsRendered(bool frommenu)
         fpsString[0] = '0' + (fps / 10);
         fpsString[1] = '0' + (fps % 10);
     }
-
+#if WII_PIN_SDA >= 0 and WII_PIN_SCL >= 0
+    // Poll Wii pad once per frame (function called once per rendered frame)
+    wiipad_raw_cached = wiipad_read();
+#endif
+#if ENABLE_VU_METER
+        if (isVUMeterToggleButtonPressed())
+        {
+            settings.flags.enableVUMeter = !settings.flags.enableVUMeter;
+            FrensSettings::savesettings();
+            // printf("VU Meter %s\n", settings.flags.enableVUMeter ? "enabled" : "disabled");
+            turnOffAllLeds();
+        }
+#endif
+    if (showSettings)
+    {
+        int rval = showSettingsMenu(true);
+        if (rval == 3)
+        {
+            reset = true;
+        }
+        showSettings = false;
+        loadoverlay(); // reload overlay to show any changes
+        emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette); // in case palette was changed, GameBoy Specific
+    }
     return count;
 }
 
@@ -601,7 +647,7 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
         prevline = MARGINTOP - 1;
     }
     // Display frame rate
-    if (fps_enabled)
+    if (settings.flags.displayFrameRate)
     {
         if (line >= FPSSTART && line < FPSEND)
         {
@@ -711,14 +757,14 @@ int main()
     printf("Stack size: %d bytes\n", PICO_STACK_SIZE);
     printf("==========================================================================================\n");
     printf("Starting up...\n");
-
+    FrensSettings::initSettings(FrensSettings::emulators::GAMEBOY);
     isFatalError = !Frens::initAll(selectedRom, CPUFreqKHz, MARGINTOP, MARGINBOTTOM, 512 * 8, false, true);
 #if !HSTX
     if (settings.screenMode != ScreenMode::NOSCANLINE_1_1 && settings.screenMode != ScreenMode::SCANLINE_1_1)
     {
         // force NOSCANLINE_1_1 mode for GB, as the framebuffer is only 160x144 pixels
         settings.screenMode = ScreenMode::NOSCANLINE_1_1;
-        Frens::savesettings();
+        FrensSettings::savesettings();
     }
     scaleMode8_7_ = Frens::applyScreenMode(settings.screenMode);
 #endif
@@ -728,12 +774,13 @@ int main()
     {
         if (strlen(selectedRom) == 0 || reset == true)
         {
-            menu("Pico-PeanutGB", ErrorMessage, isFatalError, showSplash, ".gb .gbc", selectedRom, "GB"); // never returns, but reboots upon selecting a game
+            menu("Pico-PeanutGB", ErrorMessage, isFatalError, showSplash, ".gb .gbc", selectedRom); 
         }
         reset = false;
         printf("Now playing: %s\n", selectedRom);
 
         printf("Initializing Game Boy Emulator\n");
+        EXT_AUDIO_MUTE_INTERNAL_SPEAKER(settings.flags.fruitJamEnableInternalSpeaker == 0);
         loadoverlay(); // load default overlay
         emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette);
         uint8_t *rom = reinterpret_cast<unsigned char *>(ROM_FILE_ADDR);

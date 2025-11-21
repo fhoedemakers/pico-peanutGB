@@ -57,17 +57,13 @@ It is not advised to use a NES controller because it lacks enough buttons.
 - Button2 : Open folder/flash and start game.
 - Button1 : Back to parent folder.
 - START: Show metadata and box art (when available). 
-
-The colors in the menu can be changed and saved:
-  - Select + Up/Down changes the foreground color.
-  - Select + Left/Right changes the background color.
-  - Select + Button2 saves the colors. Screen will flicker when saved.
-  - Select + Button1 resets the colors to default. (Black on white)
-
+- SELECT: Opens a setting menu. Here you can change settings like screen mode, scanlines, framerate display, menu colors and other board specific settings. Settings can also be changed in-game by pressing some button combinations as explained below. The settings menu can also be opened in-game.
 
 ## Emulator (in game)
 
-- SELECT + START, Xbox button: Resets back to the SD Card menu. Game saves are saved to the SD card.
+- SELECT + START, Xbox button: opens the settings menu. From there, you can:
+  - Quit the game and return to the SD card menu
+  - Adjust settings and resume your game.
 - SELECT + UP/SELECT + DOWN: switches screen modes.
 - SELECT + Button1: When metadata pack is installed on SDcard: Toggle between default bezel, random bezel or themed bezel. (according to the selected rom)
 - START + Button1: When playing a DMG Game, toggle between green, color and greyscale palette.
@@ -97,9 +93,9 @@ Download the metadata pack from the [releases page](https://github.com/fhoedemak
     - Press **SELECT** → show full game description.  
     - Press **Button1** → return to menu.  
     - Press **START** or **Button2** → start the game.
-  - In-game toggle between default bezel, random bezel and themed bezel: **SELECT** + **Button1**
+  - In-game toggle between different border modes: **SELECT** + **Button1**
 
-| Default | Random | themed |
+| Super Gameboy Default | Super Gameboy Random | Game-Specific |
 | ------- | ------ | ------ |
 | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/8d15a58f-9343-47ea-b940-58784d7a6071" /> | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/a6ed915f-315e-4813-8803-5b7e21bb041e" />  | <img width="320" height="180" alt="image" src="https://github.com/user-attachments/assets/ed6fbd45-ef3d-4339-8f95-3092da6e8f95" />  |
 

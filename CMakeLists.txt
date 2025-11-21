@@ -104,6 +104,7 @@ target_compile_definitions(${projectname} PUBLIC
     ENABLE_VU_METER=${ENABLE_VU_METER} # Enable VU meter (fruitjam NeoPixel leds)
     ENABLE_SOUND=1
     PEANUT_FULL_GBC_SUPPORT=1
+    WIIPAD_DELAYED_START=${WIIPAD_DELAYED_START} # Delay Wii Pad initialization to avoid I2C errors
     )
 if(NOT PICO_PLATFORM STREQUAL "rp2040")
     message(STATUS "Using PICO_PIO_USE_GPIO_BASE=1 for non-rp2040 platforms.")
