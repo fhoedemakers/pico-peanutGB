@@ -57,11 +57,13 @@ It is not advised to use a NES controller because it lacks enough buttons.
 - Button2 : Open folder/flash and start game.
 - Button1 : Back to parent folder.
 - START: Show metadata and box art (when available). 
-- SELECT: Opens a setting menu. Here you can change settings like screen mode, scanlines, framerate display, menu colors and other board specific settings. Settings can also be changed in-game by pressing some button combinations as explained below.
+- SELECT: Opens a setting menu. Here you can change settings like screen mode, scanlines, framerate display, menu colors and other board specific settings. Settings can also be changed in-game by pressing some button combinations as explained below. The settings menu can also be opened in-game.
 
 ## Emulator (in game)
 
-- SELECT + START, Xbox button: Resets back to the SD Card menu. Game saves are saved to the SD card.
+- SELECT + START, Xbox button: opens the settings menu. From there, you can:
+  - Quit the game and return to the SD card menu
+  - Adjust settings and resume your game.
 - SELECT + UP/SELECT + DOWN: switches screen modes.
 - SELECT + Button1: When metadata pack is installed on SDcard: Toggle between default bezel, random bezel or themed bezel. (according to the selected rom)
 - START + Button1: When playing a DMG Game, toggle between green, color and greyscale palette.
