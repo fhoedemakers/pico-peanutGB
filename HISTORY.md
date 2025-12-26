@@ -1,5 +1,18 @@
 # History of changes
 
+# v0.8 Release Notes
+
+- Settings are saved to /settings_gb.dat instead of /settings.dat. This allows to have separate settings files for different emulators (e.g. pico-infonesPlus and pico-peanutGB etc.).
+- Added a settings menu.
+  - Main menu: press SELECT to open; adjust options without using in-game button combos.
+  - In-game: press SELECT+START to open; from here you can also quit from the game.
+- Switched to Fatfs R0.16.
+
+## Fixes
+
+- Show correct buttonlabels in menus.
+- removed wrappers for f_chdir en f_cwd, fixed in Fatfs R0.16. (there was a long standing issue with f_chdir and f_cwd not working with exFAT formatted SD cards.)
+
 # v0.7 Release Notes
 
 - Game Boy Color games can be played now.
