@@ -31,8 +31,9 @@
 // Visibility configuration for options menu (NES specific)
 // 1 = show option line, 0 = hide.
 // Order must match enum in menu_options.h
-const uint8_t g_settings_visibility[MOPT_COUNT] = {
+const int8_t g_settings_visibility[MOPT_COUNT] = {
     0,                               // Exit Game, or back to menu. Always visible when in-game.
+    -1,                              // No save state support
     !HSTX,                           // Screen Mode (only when not HSTX)
     HSTX,                            // Scanlines toggle (only when HSTX)
     1,                               // FPS Overlay
@@ -43,6 +44,7 @@ const uint8_t g_settings_visibility[MOPT_COUNT] = {
     1,                               // Font Back Color
     ENABLE_VU_METER,                 // VU Meter
     (HW_CONFIG == 8),                // Fruit Jam Internal Speaker
+    (HW_CONFIG == 8),                // Fruit Jam Volume Control
     1,                               // DMG Palette (NES emulator does not use GameBoy palettes)
     1,                               // Border Mode (Super Gameboy style borders not applicable for NES)
     0,                               // Rapid Fire on A
@@ -443,7 +445,7 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
             if (pushed & A)
             {
                 settings.flags.displayFrameRate = !settings.flags.displayFrameRate;
-                FrensSettings::savesettings();
+                // FrensSettings::savesettings();
                 loadoverlay(); // reload overlay to show or hide fps
                 // printf("FPS: %s\n", fps_enabled ? "ON" : "OFF");
             } else if (pushed & B)
@@ -466,7 +468,17 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
                 default:
                     break;
                 }
-                FrensSettings::savesettings();
+                // FrensSettings::savesettings();
+            } else if (pushed & LEFT) {
+#if HW_CONFIG == 8
+               settings.fruitjamVolumeLevel = std::max(-63, settings.fruitjamVolumeLevel - 1);
+               EXT_AUDIO_SETVOLUME(settings.fruitjamVolumeLevel);
+#endif
+            } else if (pushed & RIGHT) {
+#if HW_CONFIG == 8
+               settings.fruitjamVolumeLevel = std::min(23, settings.fruitjamVolumeLevel + 1);
+               EXT_AUDIO_SETVOLUME(settings.fruitjamVolumeLevel);
+#endif
             }
         }
         if (p1 & SELECT)
@@ -476,7 +488,7 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
                 // toggle settings.bordermode between enum values
                 settings.flags.borderMode = (settings.flags.borderMode + 1) % 3; 
                 printf("Border mode: %d\n", settings.flags.borderMode);
-                FrensSettings::savesettings();
+                // FrensSettings::savesettings();
                 loadoverlay();
             }
             // else if (pushed & A)
@@ -522,13 +534,13 @@ void processinput(bool fromMenu, DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSyste
 #else
                 settings.flags.useExtAudio = 0;
 #endif
-                FrensSettings::savesettings();
+                // FrensSettings::savesettings();
             }
 #if ENABLE_VU_METER
             else if (pushed & RIGHT)
             {
                 settings.flags.enableVUMeter = !settings.flags.enableVUMeter;
-                FrensSettings::savesettings();
+                // FrensSettings::savesettings();
                 // printf("VU Meter %s\n", settings.flags.enableVUMeter ? "enabled" : "disabled");
                 turnOffAllLeds();
             }
@@ -584,19 +596,20 @@ int ProcessAfterFrameIsRendered(bool frommenu)
         if (isVUMeterToggleButtonPressed())
         {
             settings.flags.enableVUMeter = !settings.flags.enableVUMeter;
-            FrensSettings::savesettings();
+            // FrensSettings::savesettings();
             // printf("VU Meter %s\n", settings.flags.enableVUMeter ? "enabled" : "disabled");
             turnOffAllLeds();
         }
 #endif
     if (showSettings)
     {
+        showSettings = false;
+        FrensSettings::savesettings();
         int rval = showSettingsMenu(true);
         if (rval == 3)
         {
             reset = true;
         }
-        showSettings = false;
         loadoverlay(); // reload overlay to show any changes
         emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette); // in case palette was changed, GameBoy Specific
     }
