@@ -31,7 +31,7 @@
 // Visibility configuration for options menu (NES specific)
 // 1 = show option line, 0 = hide.
 // Order must match enum in menu_options.h
-const int8_t g_settings_visibility[MOPT_COUNT] = {
+const int8_t g_settings_visibility_gb[MOPT_COUNT] = {
     0,                               // Exit Game, or back to menu. Always visible when in-game.
     -1,                              // No save state support
     !HSTX,                           // Screen Mode (only when not HSTX)
@@ -51,7 +51,7 @@ const int8_t g_settings_visibility[MOPT_COUNT] = {
     0                                // Rapid Fire on B
 
 };
-const uint8_t g_available_screen_modes[] = {
+const uint8_t g_available_screen_modes_gb[] = {
         0,   // SCANLINE_8_7,
         0,  // NOSCANLINE_8_7,
         1,  // SCANLINE_1_1,
@@ -783,6 +783,8 @@ int main()
 #endif
 
     bool showSplash = true;
+    g_settings_visibility = g_settings_visibility_gb;
+    g_available_screen_modes = g_available_screen_modes_gb;
     while (true)
     {
         if (strlen(selectedRom) == 0 || reset == true)
