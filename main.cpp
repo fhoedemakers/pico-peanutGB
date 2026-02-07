@@ -208,6 +208,51 @@ static void inline processaudioPerFrameDVI()
     }
 }
 #endif
+// Global HDMI audio frame counter shared across HSTX audio paths
+static int g_hdmi_audio_frame_counter = 0;
+static void inline processaudioPerFrameHSTX() {
+#if HSTX && USEPICOHDMI
+    static audio_sample_t acc_buf[4];
+    static int acc_count = 0;
+    // For HSTX with PicoHDMI, we can use the same improved I2S path as non-HSTX, since PicoHDMI also uses I2S for audio output.
+     uint32_t *sample_buffer = (uint32_t *)audio_stream;
+    constexpr int kSamplesPerFrame = 738; // stereo frames (left/right packed)
+    int i = 0;
+    while (i < kSamplesPerFrame)
+    {
+
+        uint32_t packed = sample_buffer[i];
+        int16_t l = static_cast<int16_t>(packed >> 16);
+        int16_t r = static_cast<int16_t>(packed & 0xFFFF);
+#if ENABLE_VU_METER
+        if (settings.flags.enableVUMeter)
+        {
+            addSampleToVUMeter(l);
+        } 
+#endif
+        acc_buf[acc_count].left = l;
+        acc_buf[acc_count].right = r;
+        acc_count++;
+
+        if (acc_count == 4)
+        {
+            if (hstx_di_queue_get_level() >= HSTX_AUDIO_DI_HIGH_WATERMARK)
+            {
+                acc_count = 0;
+                return;
+            }
+            hstx_packet_t packet;
+            g_hdmi_audio_frame_counter = hstx_packet_set_audio_samples(&packet, acc_buf, 4, g_hdmi_audio_frame_counter);
+
+            hstx_data_island_t island;
+            hstx_encode_data_island(&island, &packet, true, false);
+            (void)hstx_di_queue_push(&island);
+            acc_count = 0;
+        }
+        i++;
+    }
+#endif    
+}
 
 // #define IMPROVED_I2S_DISABLE 0 // set to 1 to disable improved I2S path and use legacy simple path
 static void inline processaudioPerFrameI2S()
@@ -377,7 +422,8 @@ void inline output_audio_per_frame()
     processaudioPerFrameDVI();
 #endif
 #else
-    processaudioPerFrameI2S();
+    // processaudioPerFrameI2S();
+    processaudioPerFrameHSTX();
 #endif
 }
 static DWORD prevButtons[2]{};
@@ -569,7 +615,7 @@ int ProcessAfterFrameIsRendered(bool frommenu)
 #if !HSTX
         dvi_->getFrameCounter();
 #else
-        hstx_getframecounter();
+        HSTX_GETFRAMECOUNTER();
 #endif
     auto onOff = hw_divider_s32_quotient_inlined(count, 60) & 1;
     Frens::blinkLed(onOff);
@@ -639,7 +685,7 @@ WORD *__not_in_flash_func(dvi_getlinebuffer)(uint_fast8_t line)
     }
 #endif
 #else
-    currentLineBuf = hstx_getlineFromFramebuffer(line + MARGINTOP) + LEFTMARGIN;
+    currentLineBuf = HSTX_GETLINEFROMFRAMEBUFFER(line + MARGINTOP) + LEFTMARGIN;
 #endif
     return currentLineBuf;
 }
@@ -772,6 +818,9 @@ int main()
     printf("Starting up...\n");
     FrensSettings::initSettings(FrensSettings::emulators::GAMEBOY);
     isFatalError = !Frens::initAll(selectedRom, CPUFreqKHz, MARGINTOP, MARGINBOTTOM, 512 * 8, false, true);
+#if HSTX && USEPICOHDMI
+    pico_hdmi_set_audio_sample_rate(44100);
+#endif
 #if !HSTX
     if (settings.screenMode != ScreenMode::NOSCANLINE_1_1 && settings.screenMode != ScreenMode::SCANLINE_1_1)
     {
