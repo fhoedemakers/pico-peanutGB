@@ -238,6 +238,7 @@ static void inline processaudioPerFrameHSTX() {
         {
             if (hstx_di_queue_get_level() >= HSTX_AUDIO_DI_HIGH_WATERMARK)
             {
+                //printf("HSTX audio queue full, dropping audio frame\n");
                 acc_count = 0;
                 return;
             }
