@@ -39,7 +39,7 @@ const int8_t g_settings_visibility_gb[MOPT_COUNT] = {
     1,                               // FPS Overlay
     0,                               // Audio Enable
     0,                               // Frame Skip
-    (EXT_AUDIO_IS_ENABLED && !HSTX), // External Audio
+    (EXT_AUDIO_IS_ENABLED), // External Audio
     1,                               // Font Color
     1,                               // Font Back Color
     ENABLE_VU_METER,                 // VU Meter
@@ -230,6 +230,8 @@ static void inline processaudioPerFrameHSTX() {
             addSampleToVUMeter(l);
         } 
 #endif
+       l = l >> 2;
+         r = r >> 2;
        hstx_push_audio_sample(l, r);
        i++;
     }
@@ -405,7 +407,14 @@ void inline output_audio_per_frame()
 #endif
 #else
     // processaudioPerFrameI2S();
-    processaudioPerFrameHSTX();
+    if (settings.flags.useExtAudio == 1)
+    {
+        processaudioPerFrameI2S();
+    }
+    else
+    {
+        processaudioPerFrameHSTX();
+    }
 #endif
 }
 static DWORD prevButtons[2]{};
