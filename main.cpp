@@ -211,7 +211,7 @@ static void inline processaudioPerFrameDVI()
 // Global HDMI audio frame counter shared across HSTX audio paths
 static int g_hdmi_audio_frame_counter = 0;
 static void inline processaudioPerFrameHSTX() {
-#if HSTX && USEPICOHDMI
+#if HSTX 
     static audio_sample_t acc_buf[4];
     static int acc_count = 0;
     // For HSTX with PicoHDMI, we can use the same improved I2S path as non-HSTX, since PicoHDMI also uses I2S for audio output.
@@ -230,27 +230,8 @@ static void inline processaudioPerFrameHSTX() {
             addSampleToVUMeter(l);
         } 
 #endif
-        acc_buf[acc_count].left = l;
-        acc_buf[acc_count].right = r;
-        acc_count++;
-
-        if (acc_count == 4)
-        {
-            if (hstx_di_queue_get_level() >= HSTX_AUDIO_DI_HIGH_WATERMARK)
-            {
-                //printf("HSTX audio queue full, dropping audio frame\n");
-                acc_count = 0;
-                return;
-            }
-            hstx_packet_t packet;
-            g_hdmi_audio_frame_counter = hstx_packet_set_audio_samples(&packet, acc_buf, 4, g_hdmi_audio_frame_counter);
-
-            hstx_data_island_t island;
-            hstx_encode_data_island(&island, &packet, true, false);
-            (void)hstx_di_queue_push(&island);
-            acc_count = 0;
-        }
-        i++;
+       hstx_push_audio_sample(l, r);
+       i++;
     }
 #endif    
 }
@@ -616,7 +597,7 @@ int ProcessAfterFrameIsRendered(bool frommenu)
 #if !HSTX
         dvi_->getFrameCounter();
 #else
-        HSTX_GETFRAMECOUNTER();
+        hstx_getframecounter();
 #endif
     auto onOff = hw_divider_s32_quotient_inlined(count, 60) & 1;
     Frens::blinkLed(onOff);
@@ -686,7 +667,7 @@ WORD *__not_in_flash_func(dvi_getlinebuffer)(uint_fast8_t line)
     }
 #endif
 #else
-    currentLineBuf = HSTX_GETLINEFROMFRAMEBUFFER(line + MARGINTOP) + LEFTMARGIN;
+    currentLineBuf = hstx_getlineFromFramebuffer(line + MARGINTOP) + LEFTMARGIN;
 #endif
     return currentLineBuf;
 }
@@ -819,7 +800,7 @@ int main()
     printf("Starting up...\n");
     FrensSettings::initSettings(FrensSettings::emulators::GAMEBOY);
     isFatalError = !Frens::initAll(selectedRom, CPUFreqKHz, MARGINTOP, MARGINBOTTOM, 512 * 8, false, true);
-#if HSTX && USEPICOHDMI
+#if HSTX
     pico_hdmi_set_audio_sample_rate(44100);
 #endif
 #if !HSTX
