@@ -207,11 +207,10 @@ static void inline processaudioPerFrameDVI()
         i += n;
     }
 }
-#endif
+#else
 // Global HDMI audio frame counter shared across HSTX audio paths
 static int g_hdmi_audio_frame_counter = 0;
 static void inline processaudioPerFrameHSTX() {
-#if HSTX 
     static audio_sample_t acc_buf[4];
     static int acc_count = 0;
     // For HSTX with PicoHDMI, we can use the same improved I2S path as non-HSTX, since PicoHDMI also uses I2S for audio output.
@@ -234,9 +233,9 @@ static void inline processaudioPerFrameHSTX() {
          r = r >> 2;
        hstx_push_audio_sample(l, r);
        i++;
-    }
-#endif    
+    } 
 }
+#endif
 
 // #define IMPROVED_I2S_DISABLE 0 // set to 1 to disable improved I2S path and use legacy simple path
 static void inline processaudioPerFrameI2S()
