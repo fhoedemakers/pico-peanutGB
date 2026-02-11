@@ -48,7 +48,8 @@ const int8_t g_settings_visibility_gb[MOPT_COUNT] = {
     1,                               // DMG Palette (NES emulator does not use GameBoy palettes)
     1,                               // Border Mode (Super Gameboy style borders not applicable for NES)
     0,                               // Rapid Fire on A
-    0                                // Rapid Fire on B
+    0,                                // Rapid Fire on B
+     1                                // Enter bootsel mode (moved from button combo to settings menu, but keep option visible for NES)
 
 };
 const uint8_t g_available_screen_modes_gb[] = {
@@ -390,30 +391,17 @@ static void inline processaudioPerFrameI2S()
 }
 void inline output_audio_per_frame()
 {
-
-#if !HSTX
 #if EXT_AUDIO_IS_ENABLED
     if (settings.flags.useExtAudio == 1)
     {
         processaudioPerFrameI2S();
+        return;
     }
-    else
-    {
-        processaudioPerFrameDVI();
-    }
-#else
-    processaudioPerFrameDVI();
 #endif
+#if !HSTX
+    processaudioPerFrameDVI();
 #else
-    // processaudioPerFrameI2S();
-    if (settings.flags.useExtAudio == 1)
-    {
-        processaudioPerFrameI2S();
-    }
-    else
-    {
-        processaudioPerFrameHSTX();
-    }
+    processaudioPerFrameHSTX();
 #endif
 }
 static DWORD prevButtons[2]{};
