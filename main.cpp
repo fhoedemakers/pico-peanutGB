@@ -831,6 +831,7 @@ int main()
         uint8_t *rom = reinterpret_cast<unsigned char *>(ROM_FILE_ADDR);
         if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage, HSTX))
         {
+            Frens::PaceFrames60fps(true); 
             process();
             stopemulation(romName, GAMESAVEDIR);
         }
