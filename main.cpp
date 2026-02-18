@@ -757,8 +757,8 @@ void __not_in_flash_func(process)()
     int frametime = 0;
     while (reset == false)
     {
-        //Frens::PaceFrames60fps(false);
-        Frens::waitForVSync();
+        Frens::PaceFrames60fps(false);
+        //Frens::waitForVSync();
         processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false, nullptr);
         ti1 = Frens::time_us();
         emu_run_frame();
@@ -808,6 +808,8 @@ int main()
         FrensSettings::savesettings();
     }
     scaleMode8_7_ = Frens::applyScreenMode(settings.screenMode);
+#else
+    hstx_setScanLines(settings.flags.scanlineOn);
 #endif
 
     bool showSplash = true;
