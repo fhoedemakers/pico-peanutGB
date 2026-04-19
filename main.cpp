@@ -33,17 +33,19 @@
 // Order must match enum in menu_options.h
 const int8_t g_settings_visibility_gb[MOPT_COUNT] = {
     0,                               // Exit Game, or back to menu. Always visible when in-game.
+    0,                               // Reset Game. Always visible when in-game.
     -1,                              // No save state support
     !HSTX,                           // Screen Mode (only when not HSTX)
     HSTX,                            // Scanlines toggle (only when HSTX)
     1,                               // FPS Overlay
     0,                               // Audio Enable
     0,                               // Frame Skip
+    (HSTX && ENABLEDVI),                     // Display Mode (only when DVI is enabled)
     (EXT_AUDIO_IS_ENABLED), // External Audio
     1,                               // Font Color
     1,                               // Font Back Color
     ENABLE_VU_METER,                 // VU Meter
-    (HW_CONFIG == 8),                // Fruit Jam Internal Speaker
+    //(HW_CONFIG == 8),                // Fruit Jam Internal Speaker
     (HW_CONFIG == 8),                // Fruit Jam Volume Control
     1,                               // DMG Palette (NES emulator does not use GameBoy palettes)
     1,                               // Border Mode (Super Gameboy style borders not applicable for NES)
@@ -80,8 +82,8 @@ static char fpsString[3] = "00";
 #define FPSSTART (((MARGINTOP + 7) / 8) * 8)
 #define FPSEND ((FPSSTART) + 8)
 
-bool reset = false;
-
+static bool reset = false;
+static bool resetGame = false;
 #ifndef NORENDER
 #define NORENDER 0 // 0 is render frames in emulation loop
 #endif
@@ -392,7 +394,7 @@ static void inline processaudioPerFrameI2S()
 void inline output_audio_per_frame()
 {
 #if EXT_AUDIO_IS_ENABLED
-    if (settings.flags.useExtAudio == 1)
+    if (settings.flags.useExtAudio == 1 || Frens::isHeadPhoneJackConnected())
     {
         processaudioPerFrameI2S();
         return;
@@ -634,6 +636,9 @@ int ProcessAfterFrameIsRendered(bool frommenu)
         {
             reset = true;
         }
+        if (rval == 5) {
+           reset = resetGame = true;
+        }
         loadoverlay(); // reload overlay to show any changes
         emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette); // in case palette was changed, GameBoy Specific
     }
@@ -759,6 +764,7 @@ void __not_in_flash_func(process)()
     {
         Frens::PaceFrames60fps(false);
         //Frens::waitForVSync();
+        Frens::pollHeadPhoneJack();
         processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false, nullptr);
         ti1 = Frens::time_us();
         emu_run_frame();
@@ -821,20 +827,24 @@ int main()
         {
             menu("Pico-PeanutGB", ErrorMessage, isFatalError, showSplash, ".gb .gbc", selectedRom); 
         }
-        reset = false;
+      
         printf("Now playing: %s\n", selectedRom);
-
         printf("Initializing Game Boy Emulator\n");
-        EXT_AUDIO_MUTE_INTERNAL_SPEAKER(settings.flags.fruitJamEnableInternalSpeaker == 0);
-        loadoverlay(); // load default overlay
-        emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette);
-        uint8_t *rom = reinterpret_cast<unsigned char *>(ROM_FILE_ADDR);
-        if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage, HSTX))
-        {
-            Frens::PaceFrames60fps(true); 
-            process();
-            stopemulation(romName, GAMESAVEDIR);
-        }
+        do {
+            reset = false;
+            resetGame = false;
+            // EXT_AUDIO_MUTE_INTERNAL_SPEAKER(settings.flags.fruitJamEnableInternalSpeaker == 0);
+            EXT_AUDIO_SETVOLUME(settings.fruitjamVolumeLevel);
+            loadoverlay(); // load default overlay
+            emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette);
+            uint8_t *rom = reinterpret_cast<unsigned char *>(ROM_FILE_ADDR);
+            if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage, HSTX))
+            {
+                Frens::PaceFrames60fps(true); 
+                process();
+                stopemulation(romName, GAMESAVEDIR);
+            }
+        } while (resetGame);
         selectedRom[0] = 0;
         showSplash = false;
     }
