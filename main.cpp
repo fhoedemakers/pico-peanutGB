@@ -33,22 +33,25 @@
 // Order must match enum in menu_options.h
 const int8_t g_settings_visibility_gb[MOPT_COUNT] = {
     0,                               // Exit Game, or back to menu. Always visible when in-game.
+    0,                               // Reset Game. Always visible when in-game.
     -1,                              // No save state support
     !HSTX,                           // Screen Mode (only when not HSTX)
     HSTX,                            // Scanlines toggle (only when HSTX)
     1,                               // FPS Overlay
     0,                               // Audio Enable
     0,                               // Frame Skip
-    (EXT_AUDIO_IS_ENABLED && !HSTX), // External Audio
+    (HSTX && ENABLEDVI),                     // Display Mode (only when DVI is enabled)
+    (EXT_AUDIO_IS_ENABLED), // External Audio
     1,                               // Font Color
     1,                               // Font Back Color
     ENABLE_VU_METER,                 // VU Meter
-    (HW_CONFIG == 8),                // Fruit Jam Internal Speaker
+    //(HW_CONFIG == 8),                // Fruit Jam Internal Speaker
     (HW_CONFIG == 8),                // Fruit Jam Volume Control
     1,                               // DMG Palette (NES emulator does not use GameBoy palettes)
     1,                               // Border Mode (Super Gameboy style borders not applicable for NES)
     0,                               // Rapid Fire on A
-    0                                // Rapid Fire on B
+    0,                                // Rapid Fire on B
+    1                                // Enter bootsel mode
 
 };
 const uint8_t g_available_screen_modes_gb[] = {
@@ -79,8 +82,8 @@ static char fpsString[3] = "00";
 #define FPSSTART (((MARGINTOP + 7) / 8) * 8)
 #define FPSEND ((FPSSTART) + 8)
 
-bool reset = false;
-
+static bool reset = false;
+static bool resetGame = false;
 #ifndef NORENDER
 #define NORENDER 0 // 0 is render frames in emulation loop
 #endif
@@ -206,6 +209,34 @@ static void inline processaudioPerFrameDVI()
         ring.advanceWritePointer(n);
         i += n;
     }
+}
+#else
+// Global HDMI audio frame counter shared across HSTX audio paths
+static int g_hdmi_audio_frame_counter = 0;
+static void inline processaudioPerFrameHSTX() {
+    static audio_sample_t acc_buf[4];
+    static int acc_count = 0;
+    // For HSTX with PicoHDMI, we can use the same improved I2S path as non-HSTX, since PicoHDMI also uses I2S for audio output.
+     uint32_t *sample_buffer = (uint32_t *)audio_stream;
+    constexpr int kSamplesPerFrame = 738; // stereo frames (left/right packed)
+    int i = 0;
+    while (i < kSamplesPerFrame)
+    {
+
+        uint32_t packed = sample_buffer[i];
+        int16_t l = static_cast<int16_t>(packed >> 16);
+        int16_t r = static_cast<int16_t>(packed & 0xFFFF);
+#if ENABLE_VU_METER
+        if (settings.flags.enableVUMeter)
+        {
+            addSampleToVUMeter(l);
+        } 
+#endif
+       l = l >> 2;
+         r = r >> 2;
+       hstx_push_audio_sample(l, r);
+       i++;
+    } 
 }
 #endif
 
@@ -362,22 +393,17 @@ static void inline processaudioPerFrameI2S()
 }
 void inline output_audio_per_frame()
 {
-
-#if !HSTX
 #if EXT_AUDIO_IS_ENABLED
-    if (settings.flags.useExtAudio == 1)
+    if (settings.flags.useExtAudio == 1 || Frens::isHeadPhoneJackConnected())
     {
         processaudioPerFrameI2S();
+        return;
     }
-    else
-    {
-        processaudioPerFrameDVI();
-    }
-#else
-    processaudioPerFrameDVI();
 #endif
+#if !HSTX
+    processaudioPerFrameDVI();
 #else
-    processaudioPerFrameI2S();
+    processaudioPerFrameHSTX();
 #endif
 }
 static DWORD prevButtons[2]{};
@@ -610,6 +636,9 @@ int ProcessAfterFrameIsRendered(bool frommenu)
         {
             reset = true;
         }
+        if (rval == 5) {
+           reset = resetGame = true;
+        }
         loadoverlay(); // reload overlay to show any changes
         emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette); // in case palette was changed, GameBoy Specific
     }
@@ -734,6 +763,8 @@ void __not_in_flash_func(process)()
     while (reset == false)
     {
         Frens::PaceFrames60fps(false);
+        //Frens::waitForVSync();
+        Frens::pollHeadPhoneJack();
         processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false, nullptr);
         ti1 = Frens::time_us();
         emu_run_frame();
@@ -772,6 +803,9 @@ int main()
     printf("Starting up...\n");
     FrensSettings::initSettings(FrensSettings::emulators::GAMEBOY);
     isFatalError = !Frens::initAll(selectedRom, CPUFreqKHz, MARGINTOP, MARGINBOTTOM, 512 * 8, false, true);
+#if HSTX
+    pico_hdmi_set_audio_sample_rate(44100);
+#endif
 #if !HSTX
     if (settings.screenMode != ScreenMode::NOSCANLINE_1_1 && settings.screenMode != ScreenMode::SCANLINE_1_1)
     {
@@ -780,6 +814,8 @@ int main()
         FrensSettings::savesettings();
     }
     scaleMode8_7_ = Frens::applyScreenMode(settings.screenMode);
+#else
+    hstx_setScanLines(settings.flags.scanlineOn);
 #endif
 
     bool showSplash = true;
@@ -791,19 +827,24 @@ int main()
         {
             menu("Pico-PeanutGB", ErrorMessage, isFatalError, showSplash, ".gb .gbc", selectedRom); 
         }
-        reset = false;
+      
         printf("Now playing: %s\n", selectedRom);
-
         printf("Initializing Game Boy Emulator\n");
-        EXT_AUDIO_MUTE_INTERNAL_SPEAKER(settings.flags.fruitJamEnableInternalSpeaker == 0);
-        loadoverlay(); // load default overlay
-        emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette);
-        uint8_t *rom = reinterpret_cast<unsigned char *>(ROM_FILE_ADDR);
-        if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage, HSTX))
-        {
-            process();
-            stopemulation(romName, GAMESAVEDIR);
-        }
+        do {
+            reset = false;
+            resetGame = false;
+            // EXT_AUDIO_MUTE_INTERNAL_SPEAKER(settings.flags.fruitJamEnableInternalSpeaker == 0);
+            EXT_AUDIO_SETVOLUME(settings.fruitjamVolumeLevel);
+            loadoverlay(); // load default overlay
+            emu_set_dmg_palette_type((dmg_palette_type_t)settings.flags.dmgLCDPalette);
+            uint8_t *rom = reinterpret_cast<unsigned char *>(ROM_FILE_ADDR);
+            if (startemulation(rom, romName, GAMESAVEDIR, ErrorMessage, HSTX))
+            {
+                Frens::PaceFrames60fps(true); 
+                process();
+                stopemulation(romName, GAMESAVEDIR);
+            }
+        } while (resetGame);
         selectedRom[0] = 0;
         showSplash = false;
     }

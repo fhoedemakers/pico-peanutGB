@@ -35,9 +35,9 @@ void splash()
     strcpy(s, "@shuichi_takano");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 15, s, CLIGHTBLUE, bgcolorSplash);
 #else
-    strcpy(s, "HSTX video driver & I2S audio");
+    strcpy(s, "HSTX video driver _ I2S audio___");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 14, s, fgcolorSplash, bgcolorSplash);
-    strcpy(s, "@frenskefrens");
+    strcpy(s, "__@fliperama86____@frenskefrens__");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 15, s, CLIGHTBLUE, bgcolorSplash);
 #endif
     strcpy(s, "(S)NES/WII controller support");
