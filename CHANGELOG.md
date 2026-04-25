@@ -10,9 +10,7 @@
 
 # v0.10 Release notes
 
-This release brings picture and sound together over a single HDMI cable on
-more boards, switches additional RP2350 configurations from PicoDVI to
-HSTX, and adds a small convenience for flashing new firmware.
+In this release PicoDVI is replaced with HSTX where possible, implements audio over HDMI using HSTX and adds a small convenience for flashing new firmware.
 
 A huge thank you to [@fliperama86](https://github.com/fliperama86) for the
 excellent [pico_hdmi](https://github.com/fliperama86/pico_hdmi) driver that
@@ -40,7 +38,7 @@ single HDMI cable — no separate audio jack needed:
 To enable audio over HDMI, make sure external audio is disabled in the
 settings menu. If you'd rather keep using a separate audio output, you
 can switch the HSTX boards to **DVI mode** (video only, no embedded
-sound) from the settings menu.
+sound) from the settings menu. This setting automatically enables external audio in those configurations that support a DAC.
 
 These RP2350 boards have also been switched from PicoDVI to HSTX. They
 keep using a separate audio output for now, but picture quality should
