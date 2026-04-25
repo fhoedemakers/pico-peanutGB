@@ -18,7 +18,7 @@ made the new HDMI output possible, and for all the help along the way.
 
 ## What's new
 
-### Video and sound over a single HDMI cable
+### HSTX Video and sound over HDMI
 
 On the technical side, several RP2350 board configurations have switched
 from the **PicoDVI** software-driven video output to **HSTX**, the
@@ -40,9 +40,7 @@ settings menu. If you'd rather keep using a separate audio output, you
 can switch the HSTX boards to **DVI mode** (video only, no embedded
 sound) from the settings menu. This setting automatically enables external audio in those configurations that support a DAC.
 
-These RP2350 boards have also been switched from PicoDVI to HSTX. They
-keep using a separate audio output for now, but picture quality should
-look the same and the change frees up CPU cycles for future improvements:
+These RP2350 boards have also been switched from PicoDVI to HSTX. (audio and Video):
 
 - [Breadboard build](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#raspberry-pi-pico-or-pico-2-setup-with-adafruit-hardware-and-breadboard)
 - [PCB build](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#pcb-with-raspberry-pi-pico-or-pico-2)
