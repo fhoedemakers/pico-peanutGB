@@ -1,5 +1,7 @@
 # CHANGELOG
 
+> **HSTX replaces PicoDVI** on more boards, **HSTX now has picture and sound over HDMI**, and you can enter flashing mode from the settings menu.
+
 # General Info
 
 [Binaries for each configuration and PCB design are at the end of this page](#downloads___).
@@ -8,41 +10,61 @@
 
 # v0.10 Release notes
 
-For the boards that use HSTX in stead of PicoDVI: HDMI audio is now supported via the new HSTX video driver. Huge thanks to [@fliperama86](https://github.com/fliperama86) for the awesome [pico_hdmi](https://github.com/fliperama86/pico_hdmi) driver that made this possible and for helping out.
+This release brings picture and sound together over a single HDMI cable on
+more boards, switches additional RP2350 configurations from PicoDVI to
+HSTX, and adds a small convenience for flashing new firmware.
 
-- Adafruit Fruit Jam.
-- Murmulator M2. 
+A huge thank you to [@fliperama86](https://github.com/fliperama86) for the
+excellent [pico_hdmi](https://github.com/fliperama86/pico_hdmi) driver that
+made the new HDMI output possible, and for all the help along the way.
 
-Other RP2350 configurations that now use HSTX (GPIO 12 - 19) in stead of PicoDVI:
+## What's new
 
-- [Breadboard](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#raspberry-pi-pico-or-pico-2-setup-with-adafruit-hardware-and-breadboard)
-- [PCB](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#pcb-with-raspberry-pi-pico-or-pico-2)
+### Video and sound over a single HDMI cable
+
+On the technical side, several RP2350 board configurations have switched
+from the **PicoDVI** software-driven video output to **HSTX**, the
+RP2350's dedicated High-Speed Serial Transmit hardware (GPIO 12 – 19).
+HSTX has been used for video on some boards before, but in this release
+it also carries **audio embedded in the HDMI stream** for the first
+time — that's the new capability HSTX gains here. (PicoDVI has always
+been able to embed audio; HSTX is just catching up on that front while
+offloading the work from the CPU to dedicated hardware.)
+
+In practice, on these boards picture and sound now travel together over a
+single HDMI cable — no separate audio jack needed:
+
+- Adafruit Fruit Jam
+- Murmulator M2
+
+To enable audio over HDMI, make sure external audio is disabled in the
+settings menu. If you'd rather keep using a separate audio output, you
+can switch the HSTX boards to **DVI mode** (video only, no embedded
+sound) from the settings menu.
+
+These RP2350 boards have also been switched from PicoDVI to HSTX. They
+keep using a separate audio output for now, but picture quality should
+look the same and the change frees up CPU cycles for future improvements:
+
+- [Breadboard build](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#raspberry-pi-pico-or-pico-2-setup-with-adafruit-hardware-and-breadboard)
+- [PCB build](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#pcb-with-raspberry-pi-pico-or-pico-2)
 - [Adafruit Metro RP2350](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#adafruit-metro-rp2350)
-  
-All the other boards still use PicoDVI.
 
-To enable audio over hdmi, make sure external audio is disabled in the settings menu.
+All other boards continue to use PicoDVI and work as before.
 
-- Added option in settings menu to enter bootsel mode for flashing firmware. 
+### New options and conveniences
 
-# v0.9 Release Notes
-- Added support for [Murmulator M1 and M2 boards](https://murmulator.ru). [@javavi](https://github.com/javavi)  [#150](https://github.com/fhoedemakers/pico-infonesPlus/issues/150)
-  - M1: RP2040/RP2350
-  - M2: RP2350 only
-  **Note**: These Murmulator M1 and M2 builds are untested. Please report any issues.
-- **Fruit Jam only**: Add volume controls to settings menu. Can also be changed in-game via (START + LEFT/RIGHT). Note that too high volume levels may cause distortion. (Ext speaker, advised 16 db max, internal advised 18 dB max). Latest metadata package includes a sample.wav file to test the volume level.
-- Updated GBMetaData.zip: Added **sample.wav**. This sample will be played when using the Fruit Jam volume control in the settings menu. Note when **/soundrecorder.wav** is found, this file will be played in stead.
-- Updated the menu to also list .wav audio files.
-- Added basic wav audio playback from within the menu. Press BUTTON2 or START to play the wav file. Tested with https://lonepeakmusic.itch.io/retro-midi-music-pack-1 The wav file must have the following specs:
-  - 16/24 bit PCM wav files only.  (24 bit files are downsampled to 16 bit) 
-  - 2ch stereo only.
-  - Sample rate supported: 44100.
-- **RP2350 with PSRAM only**: Record about 30 seconds of audio by pressing START to pause the game and then START + BUTTON1. Audio is recorded to **/soundrecorder.wav** on the SD-card.
+- **Enter flashing mode from the settings menu**, so you can update the
+  firmware without having to unplug the device and hold the BOOTSEL button.
 
-## Fixes
+### Reliability
 
-- Fruit Jam audio fixes.
-- Settings changed by in-game button combos are saved when exiting to menu.
+- **Resync watchdog for HSTX output.** On the new HSTX output when set
+  to video-only (DVI) mode, the monitor could occasionally lose the
+  picture. The emulator now detects this and automatically restores the
+  signal without needing a restart. (Not observed in full HDMI mode, but
+  the same safety net is enabled there too just in case.)
+
 
 # previous changes
 
