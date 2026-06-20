@@ -33,15 +33,16 @@
 // Order must match enum in menu_options.h
 const int8_t g_settings_visibility_gb[MOPT_COUNT] = {
     0,                               // Exit Game, or back to menu. Always visible when in-game.
-    0,                               // Reset Game. Always visible when in-game.
-    -1,                              // No save state support
-    !HSTX,                           // Screen Mode (only when not HSTX)
-    HSTX,                            // Scanlines toggle (only when HSTX)
+    0,                               // Reset Game
+    0,                               // Save / Restore State
+    1,                               // Screen Mode
+    0,                               // Scanlines toggle (superseded by Screen Mode)
+    HSTX,                            // Scanline Type (HSTX only)
     1,                               // FPS Overlay
     0,                               // Audio Enable
     0,                               // Frame Skip
-    (HSTX && ENABLEDVI),                     // Display Mode (only when DVI is enabled)
-    (EXT_AUDIO_IS_ENABLED), // External Audio
+    HSTX && ENABLEDVI,               // Display Mode (HDMI or DVI, only when HSTX is enabled, because non-HSTX builds always use HDMI)
+    (EXT_AUDIO_IS_ENABLED ), // External Audio
     1,                               // Font Color
     1,                               // Font Back Color
     ENABLE_VU_METER,                 // VU Meter
@@ -50,9 +51,12 @@ const int8_t g_settings_visibility_gb[MOPT_COUNT] = {
     1,                               // DMG Palette (NES emulator does not use GameBoy palettes)
     1,                               // Border Mode (Super Gameboy style borders not applicable for NES)
     0,                               // Rapid Fire on A
-    0,                                // Rapid Fire on B
-    1                                // Enter bootsel mode
-
+    0,                               // Rapid Fire on B
+    0,                               // Auto Insert Disk A, enabled at runtime on RP2350
+    0,                               // Auto Swap FDS, enabled at runtime on RP2350
+    0,                               // FDS Disk Swap (toggled on after fdsParse succeeds)
+    0,                               // Overclock (CPU high clock toggle)
+    1,                               // Enter bootsel mode
 };
 const uint8_t g_available_screen_modes_gb[] = {
         0,   // SCANLINE_8_7,
