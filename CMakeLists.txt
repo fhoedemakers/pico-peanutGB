@@ -237,6 +237,19 @@ add_subdirectory(pico_lib/util)
 add_subdirectory(pico_shared)
 add_subdirectory(tusb_xinput xinput_host)
 target_link_options(${projectname} PRIVATE -Xlinker --print-memory-usage --data-sections)
+
+# Optional: relink this emulator to run from the bootloader's application
+# partition (for use with pico_emuLoader). Off by default so standalone builds
+# are unchanged. Enable with: cmake -DBUILD_FOR_BOOTLOADER=ON ..
+if(BUILD_FOR_BOOTLOADER)
+    include("pico_shared/BootPartition.cmake")
+    if(DEFINED BUILD_FOR_BOOTLOADER_SLOT)
+        frens_link_to_pinned_slot(${projectname} ${BUILD_FOR_BOOTLOADER_SLOT})
+    else()
+        frens_offset_for_bootloader(${projectname})
+    endif()
+endif()
+
 pico_add_extra_outputs(${projectname})
 
 
