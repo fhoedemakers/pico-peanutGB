@@ -57,6 +57,7 @@ const int8_t g_settings_visibility_gb[MOPT_COUNT] = {
     0,                               // FDS Disk Swap (toggled on after fdsParse succeeds)
     0,                               // Overclock (CPU high clock toggle)
     1,                               // Enter bootsel mode
+    BOOTLOADER_BUILD,                // Return to emuLoader picker (only when built for the loader)
 };
 const uint8_t g_available_screen_modes_gb[] = {
         0,   // SCANLINE_8_7,
