@@ -1,5 +1,58 @@
 # History of changes
 
+# v0.10 Release notes
+
+In this release PicoDVI is replaced with HSTX where possible, implements audio over HDMI using HSTX and adds a small convenience for flashing new firmware.
+
+A huge thank you to [@fliperama86](https://github.com/fliperama86) for the
+excellent [pico_hdmi](https://github.com/fliperama86/pico_hdmi) driver that
+made the new HDMI output possible, and for all the help along the way.
+
+## What's new
+
+### HSTX Video and sound over HDMI
+
+On the technical side, several RP2350 board configurations have switched
+from the **PicoDVI** software-driven video output to **HSTX**, the
+RP2350's dedicated High-Speed Serial Transmit hardware (GPIO 12 – 19).
+HSTX has been used for video on some boards before, but in this release
+it also carries **audio embedded in the HDMI stream** for the first
+time — that's the new capability HSTX gains here. (PicoDVI has always
+been able to embed audio; HSTX is just catching up on that front while
+offloading the work from the CPU to dedicated hardware.)
+
+In practice, on these boards picture and sound now travel together over a
+single HDMI cable — no separate audio jack needed:
+
+- Adafruit Fruit Jam
+- Murmulator M2
+
+To enable audio over HDMI, make sure external audio is disabled in the
+settings menu. If you'd rather keep using a separate audio output, you
+can switch the HSTX boards to **DVI mode** (video only, no embedded
+sound) from the settings menu. This setting automatically enables external audio in those configurations that support a DAC.
+
+These RP2350 boards have also been switched from PicoDVI to HSTX. (audio and Video):
+
+- [Breadboard build](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#raspberry-pi-pico-or-pico-2-setup-with-adafruit-hardware-and-breadboard)
+- [PCB build](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#pcb-with-raspberry-pi-pico-or-pico-2)
+- [Adafruit Metro RP2350](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#adafruit-metro-rp2350)
+
+All other boards continue to use PicoDVI and work as before.
+
+### New options and conveniences
+
+- **Enter flashing mode from the settings menu**, so you can update the
+  firmware without having to unplug the device and hold the BOOTSEL button.
+
+### Reliability
+
+- **Resync watchdog for HSTX output.** On the new HSTX output when set
+  to video-only (DVI) mode, the monitor could occasionally lose the
+  picture. The emulator now detects this and automatically restores the
+  signal without needing a restart. (Not observed in full HDMI mode, but
+  the same safety net is enabled there too just in case.)
+
 # v0.9 Release Notes
 - Added support for [Murmulator M1 and M2 boards](https://murmulator.ru). [@javavi](https://github.com/javavi)  [#150](https://github.com/fhoedemakers/pico-infonesPlus/issues/150)
   - M1: RP2040/RP2350
