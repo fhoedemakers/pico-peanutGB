@@ -1,6 +1,6 @@
 # CHANGELOG
 
-> **HSTX replaces PicoDVI** on more boards, **HSTX now has picture and sound over HDMI**, and you can enter flashing mode from the settings menu.
+Adds support for **pico-bootLoader**, which allows several emulators to be installed on a single board and selected at power-on. Also adds a **controller test screen**, an **LCD scanline type**, wider controller support and a number of stability fixes.
 
 # General Info
 
@@ -8,58 +8,126 @@
 
 [See setup section in in Pico-infoNesPlus readme how to install and wire up](https://github.com/fhoedemakers/pico-infonesPlus#pico-setup)
 
-# v0.10 Release notes
+# v0.11 Release notes
 
-In this release PicoDVI is replaced with HSTX where possible, implements audio over HDMI using HSTX and adds a small convenience for flashing new firmware.
+This release adds support for pico-bootLoader, extends controller
+support, introduces a controller test screen and an additional display
+option, and contains a number of stability fixes.
 
-A huge thank you to [@fliperama86](https://github.com/fliperama86) for the
-excellent [pico_hdmi](https://github.com/fliperama86/pico_hdmi) driver that
-made the new HDMI output possible, and for all the help along the way.
+## Support for pico-bootLoader
+
+An RP2350 board normally holds a single program. Running a different
+emulator requires connecting the board to a computer, holding BOOTSEL
+and copying a different `.uf2` file onto it.
+
+[pico-bootLoader](https://github.com/fhoedemakers/pico-bootLoader)
+removes that requirement. The loader is flashed onto the board once, the
+applications are placed on the SD card, and from then on a menu is shown
+at every power-on. The menu is operated with a USB game controller or a
+USB keyboard and can be displayed either with cover artwork per
+application or as plain text. Selecting an entry starts the
+corresponding application; a reset or power cycle returns to the menu.
+
+Besides this Game Boy / Game Boy Color emulator, the loader supports the
+NES, Sega Genesis / Mega Drive, Sega Master System / Game Gear,
+PC Engine and Philips Videopac / Odyssey² emulators, as well as a native
+port of *Doom*.
+
+Please note:
+
+- The binaries listed on this page are the standalone builds and are
+  unchanged. Use one of these to run the Game Boy emulator on its own.
+- The builds intended for the loader are published in the pico-bootLoader
+  repository, not here. See the [pico-bootLoader releases
+  page](https://github.com/fhoedemakers/pico-bootLoader/releases) for
+  those files and for the installation instructions.
+- When the emulator is started from the loader, the settings menu
+  contains an additional entry, **Return to emulator selection**, which
+  returns to the application menu. This entry is not present in
+  standalone builds.
 
 ## What's new
 
-### HSTX Video and sound over HDMI
+### Controller Test screen
 
-On the technical side, several RP2350 board configurations have switched
-from the **PicoDVI** software-driven video output to **HSTX**, the
-RP2350's dedicated High-Speed Serial Transmit hardware (GPIO 12 – 19).
-HSTX has been used for video on some boards before, but in this release
-it also carries **audio embedded in the HDMI stream** for the first
-time — that's the new capability HSTX gains here. (PicoDVI has always
-been able to embed audio; HSTX is just catching up on that front while
-offloading the work from the CPU to dedicated hardware.)
+The settings menu contains a new entry, **Controller Test**. It displays
+a controller layout on screen and highlights each button while it is
+pressed, following the most recently used input source: the controller
+ports on the board, USB controllers 1 and 2, and a Wii Classic
+controller. A list below the layout shows the connection status of each
+source and whether input has been received from it.
 
-In practice, on these boards picture and sound now travel together over a
-single HDMI cable — no separate audio jack needed:
+Hold **SELECT + START** for two seconds to leave the screen.
 
-- Adafruit Fruit Jam
-- Murmulator M2
+### Display options
 
-To enable audio over HDMI, make sure external audio is disabled in the
-settings menu. If you'd rather keep using a separate audio output, you
-can switch the HSTX boards to **DVI mode** (video only, no embedded
-sound) from the settings menu. This setting automatically enables external audio in those configurations that support a DAC.
+- New **Scanline Type** option with the values *Simple* and *LCD*. Simple
+  darkens alternate lines; LCD darkens alternate columns as well,
+  resulting in a grid pattern that resembles an LCD screen.
+- The separate **Scanlines** on/off option has been removed. Scanlines
+  are now selected through the **Screen Mode** option.
 
-These RP2350 boards have also been switched from PicoDVI to HSTX. (audio and Video):
+### Settings menu
 
-- [Breadboard build](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#raspberry-pi-pico-or-pico-2-setup-with-adafruit-hardware-and-breadboard)
-- [PCB build](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#pcb-with-raspberry-pi-pico-or-pico-2)
-- [Adafruit Metro RP2350](https://github.com/fhoedemakers/pico-infonesPlus?tab=readme-ov-file#adafruit-metro-rp2350)
+- The option list is now scrollable, so that all options remain
+  accessible as their number increases. The SAVE, CANCEL and DEFAULT
+  actions are shown at a fixed position.
+- The software version is displayed in the menu.
 
-All other boards continue to use PicoDVI and work as before.
+### Menu and SD card
 
-### New options and conveniences
+- The default directory for roms is now **`/roms/GB`**. Roms may still be
+  placed anywhere on the card and organised in subdirectories.
+- When leaving a subdirectory, the selection returns to the directory
+  that was left instead of the first entry in the list.
+- If the last used directory no longer exists, the menu falls back to the
+  root of the card.
 
-- **Enter flashing mode from the settings menu**, so you can update the
-  firmware without having to unplug the device and hold the BOOTSEL button.
+### Controller support
 
-### Reliability
+- Shoulder buttons are now mapped on the **DualShock 4**, **DualSense**,
+  **Xbox / XInput** controllers, the **MantaPad** and the **Retro-bit
+  Mega Drive Arcade Pad**. The Square button is mapped on the
+  **PlayStation Classic** controller, and L/R and ZL/ZR are mapped on the
+  **Wii Classic Controller**. Additional keys were added to the USB
+  keyboard mapping.
+- On XInput controllers, the left thumbstick also functions as a d-pad.
+- **SNES controllers** connected to the controller port on the board are
+  now fully supported. NES controllers are detected automatically and are
+  unaffected.
 
-- **Resync watchdog for HSTX output.** On the new HSTX output when set
-  to video-only (DVI) mode, the monitor could occasionally lose the
-  picture. The emulator now detects this and automatically restores the
-  signal without needing a restart. (Not observed in full HDMI mode, but
-  the same safety net is enabled there too just in case.)
+## Fixes
+
+### Display
+
+- Corrected the alignment of the frame buffer, which could cause crashes
+  and corrupted scanlines.
+- The HDMI output pins are configured with a higher drive strength and a
+  faster slew rate, which improves signal quality on longer or
+  lower-quality cables.
+
+### Stability
+
+- Fixed a crash when loading larger roms, caused by the rom data
+  overwriting the area of flash memory in which the board parameters are
+  stored.
+- Fixed a possible stack overflow when saving or loading settings, which
+  could cause a crash on boards with limited memory.
+- The SD card driver has been updated with a number of reliability
+  improvements, including card detection after a reset.
+- **Adafruit Fruit Jam and Adafruit Feather RP2350 only:** fixed
+  initialisation of the audio DAC failing when a NES- or
+  SNES-Classic-Mini controller is connected at power-on. These
+  controllers interfere with the I2C bus that is shared with the DAC. A
+  controller connected at power-on is now also usable from the first menu
+  screen.
+
+## Please note
+
+- Settings are reset to their default values the first time this version
+  is run. The settings file has changed to accommodate the new options,
+  so earlier settings files cannot be reused. Preferences have to be set
+  again in the settings menu and saved.
 
 
 # previous changes
