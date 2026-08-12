@@ -12,14 +12,21 @@
 #define AUDIO_SAMPLE_RATE	44100   // was 32768
 //
 #define DMG_CLOCK_FREQ		4194304.0
-#define SCREEN_REFRESH_CYCLES	70224.0
-#define VERTICAL_SYNC		(DMG_CLOCK_FREQ/SCREEN_REFRESH_CYCLES)
 
-#define AUDIO_SAMPLES		((unsigned)(AUDIO_SAMPLE_RATE / VERTICAL_SYNC))
+/* There is deliberately no AUDIO_SAMPLES here any more. It used to be
+ * AUDIO_SAMPLE_RATE / (DMG_CLOCK_FREQ / SCREEN_REFRESH_CYCLES) = 738, the
+ * number of samples in one *Game Boy* frame (59.7275 Hz). But the emulator is
+ * paced by the display, not by the Game Boy, and the audio sinks are clocked
+ * from the pixel clock -- so producing 738 per frame drifted against them and
+ * caused periodic dropouts. How many samples a frame needs is a property of the
+ * output side, so it is decided there: see emu_audio_frame_budget() in main.cpp,
+ * which is passed to audio_callback() through its len argument. */
 
 /**
- * Fill allocated buffer "data" with "len" number of 32-bit floating point
- * samples (native endian order) in stereo interleaved format.
+ * Fill allocated buffer "data" with "len" BYTES of audio: len/4 stereo frames,
+ * each a pair of native-endian int16_t (left then right). "len" is honoured, so
+ * one video frame's audio may be rendered in several successive calls; all APU
+ * state persists between them.
  */
 void audio_callback(void *ptr, uint8_t *data, int len);
 

@@ -9,16 +9,23 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "pico.h"
+
 #include "minigb_apu.h"
 
 #define DMG_CLOCK_FREQ_U	((unsigned)DMG_CLOCK_FREQ)
-#define AUDIO_NSAMPLES		(AUDIO_SAMPLES * 2u)
 
 #define AUDIO_MEM_SIZE		(0xFF3F - 0xFF10 + 1)
 #define AUDIO_ADDR_COMPENSATION	0xFF10
 
+/* pico.h supplies these (properly parenthesised); only define them when it
+ * hasn't. The two forms agree on the single use below, MAX(0, MIN(15, vol)). */
+#ifndef MAX
 #define MAX(a, b)		( a > b ? a : b )
+#endif
+#ifndef MIN
 #define MIN(a, b)		( a <= b ? a : b )
+#endif
 
 #define VOL_INIT_MAX		(INT16_MAX/8)
 #define VOL_INIT_MIN		(INT16_MIN/8)
@@ -97,13 +104,13 @@ static struct chan {
 
 static int32_t vol_l, vol_r;
 
-static void set_note_freq(struct chan *c, const uint32_t freq)
+static void __not_in_flash_func(set_note_freq)(struct chan *c, const uint32_t freq)
 {
 	/* Lowest expected value of freq is 64. */
 	c->freq_inc = freq * (uint32_t)(FREQ_INC_REF / AUDIO_SAMPLE_RATE);
 }
 
-static void chan_enable(const uint_fast8_t i, const bool enable)
+static void __not_in_flash_func(chan_enable)(const uint_fast8_t i, const bool enable)
 {
 	uint8_t val;
 
@@ -116,7 +123,7 @@ static void chan_enable(const uint_fast8_t i, const bool enable)
 	//audio_mem[0xFF26 - AUDIO_ADDR_COMPENSATION] |= 0x80 | ((uint8_t)enable) << i;
 }
 
-static void update_env(struct chan *c)
+static void __not_in_flash_func(update_env)(struct chan *c)
 {
 	c->env.counter += c->env.inc;
 
@@ -132,7 +139,7 @@ static void update_env(struct chan *c)
 	}
 }
 
-static void update_len(struct chan *c)
+static void __not_in_flash_func(update_len)(struct chan *c)
 {
 	if (!c->len.enabled)
 		return;
@@ -144,7 +151,7 @@ static void update_len(struct chan *c)
 	}
 }
 
-static bool update_freq(struct chan *c, uint32_t *pos)
+static bool __not_in_flash_func(update_freq)(struct chan *c, uint32_t *pos)
 {
 	uint32_t inc = c->freq_inc - *pos;
 	c->freq_counter += inc;
@@ -159,7 +166,7 @@ static bool update_freq(struct chan *c, uint32_t *pos)
 	}
 }
 
-static void update_sweep(struct chan *c)
+static void __not_in_flash_func(update_sweep)(struct chan *c)
 {
 	c->sweep.counter += c->sweep.inc;
 
@@ -184,7 +191,7 @@ static void update_sweep(struct chan *c)
 	}
 }
 
-static void update_square(int16_t* samples, const bool ch2)
+static void __not_in_flash_func(update_square)(int16_t* samples, const uint_fast16_t nsamples, const bool ch2)
 {
 	uint32_t freq;
 	struct chan* c = chans + ch2;
@@ -196,7 +203,7 @@ static void update_square(int16_t* samples, const bool ch2)
 	set_note_freq(c, freq);
 	c->freq_inc *= 8;
 
-	for (uint_fast16_t i = 0; i < AUDIO_NSAMPLES; i += 2) {
+	for (uint_fast16_t i = 0; i < nsamples * 2u; i += 2) {
 		update_len(c);
 
 		if (!c->enabled)
@@ -231,7 +238,7 @@ static void update_square(int16_t* samples, const bool ch2)
 	}
 }
 
-static uint8_t wave_sample(const unsigned int pos, const unsigned int volume)
+static uint8_t __not_in_flash_func(wave_sample)(const unsigned int pos, const unsigned int volume)
 {
 	uint8_t sample;
 
@@ -244,7 +251,7 @@ static uint8_t wave_sample(const unsigned int pos, const unsigned int volume)
 	return volume ? (sample >> (volume - 1)) : 0;
 }
 
-static void update_wave(int16_t *samples)
+static void __not_in_flash_func(update_wave)(int16_t *samples, const uint_fast16_t nsamples)
 {
 	uint32_t freq;
 	struct chan *c = chans + 2;
@@ -257,7 +264,7 @@ static void update_wave(int16_t *samples)
 
 	c->freq_inc *= 32;
 
-	for (uint_fast16_t i = 0; i < AUDIO_NSAMPLES; i += 2) {
+	for (uint_fast16_t i = 0; i < nsamples * 2u; i += 2) {
 		update_len(c);
 
 		if (!c->enabled)
@@ -283,8 +290,10 @@ static void update_wave(int16_t *samples)
 			continue;
 
 		{
-			/* First element is unused. */
-			int16_t div[] = { INT16_MAX, 1, 2, 4 };
+			/* First element is unused. static const: as a plain
+			 * local this array was rebuilt on the stack once per
+			 * output sample. */
+			static const int16_t div[] = { INT16_MAX, 1, 2, 4 };
 			sample = sample / (div[c->volume]);
 		}
 
@@ -298,7 +307,7 @@ static void update_wave(int16_t *samples)
 	}
 }
 
-static void update_noise(int16_t *samples)
+static void __not_in_flash_func(update_noise)(int16_t *samples, const uint_fast16_t nsamples)
 {
 	struct chan *c = chans + 3;
 
@@ -318,7 +327,7 @@ static void update_noise(int16_t *samples)
 	if (c->freq >= 14)
 		c->enabled = 0;
 
-	for (uint_fast16_t i = 0; i < AUDIO_NSAMPLES; i += 2) {
+	for (uint_fast16_t i = 0; i < nsamples * 2u; i += 2) {
 		update_len(c);
 
 		if (!c->enabled)
@@ -365,22 +374,31 @@ static void update_noise(int16_t *samples)
 /**
  * SDL2 style audio callback function.
  */
-void audio_callback(void *userdata, uint8_t *stream, int len)
+void __not_in_flash_func(audio_callback)(void *userdata, uint8_t *stream, int len)
 {
 	int16_t *samples = (int16_t *)stream;
+	/* One stereo frame is two int16_t, i.e. sizeof(uint32_t) bytes. Honour
+	 * the caller's length rather than a compile-time constant, so a
+	 * video frame's audio can be rendered in several smaller slices as the
+	 * frame is emulated (see emu_audio_emit_upto() in gb.c). All APU state
+	 * lives in chans[], so splitting one call into N is state-neutral. */
+	const uint_fast16_t nsamples = (uint_fast16_t)((unsigned)len / sizeof(uint32_t));
 
 	/* Appease unused variable warning. */
 	(void)userdata;
 
-	memset(stream, 0, len);  
+	if (nsamples == 0)
+		return;
 
-	update_square(samples, 0);
-	update_square(samples, 1);
-	update_wave(samples);
-	update_noise(samples);
+	memset(stream, 0, nsamples * sizeof(uint32_t));
+
+	update_square(samples, nsamples, 0);
+	update_square(samples, nsamples, 1);
+	update_wave(samples, nsamples);
+	update_noise(samples, nsamples);
 }
 
-static void chan_trigger(uint_fast8_t i)
+static void __not_in_flash_func(chan_trigger)(uint_fast8_t i)
 {
 	struct chan *c = chans + i;
 
@@ -433,7 +451,7 @@ static void chan_trigger(uint_fast8_t i)
  *				This is not checked in this function.
  * \return	Byte at address.
  */
-uint8_t audio_read(const uint16_t addr)
+uint8_t __not_in_flash_func(audio_read)(const uint16_t addr)
 {
 	static const uint8_t ortab[] = {
 		0x80, 0x3f, 0x00, 0xff, 0xbf,
@@ -456,7 +474,7 @@ uint8_t audio_read(const uint16_t addr)
  *				This is not checked in this function.
  * \param val	Byte to write at address.
  */
-void audio_write(const uint16_t addr, const uint8_t val)
+void __not_in_flash_func(audio_write)(const uint16_t addr, const uint8_t val)
 {
 	/* Find sound channel corresponding to register address. */
 	uint_fast8_t i;

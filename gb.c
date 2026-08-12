@@ -88,12 +88,103 @@ static uint16_t dmgGreenPalette555[3][4] = {
 #if PEANUT_FULL_GBC_SUPPORT
 static uint16_t *gbcPal = NULL;      // pointer to current CGB palette
 #endif
-static uint16_t (*dmgPal)[4] = NULL; // pointer to current DMG palette
 static dmg_palette_type_t currentDmgPaletteType = DMG_PALETTE_GREENLCD;
 
+/* Flattened DMG palette. Peanut packs the palette selector in bits 4-5
+ * (LCD_PALETTE_ALL) and the colour index in bits 0-1 (LCD_COLOUR), so masking
+ * the pixel byte with 0x33 covers every reachable value in 64 entries -- one
+ * load per pixel instead of the two dependent loads plus shift that
+ * dmgPal[(p & 0x30) >> 4][p & 3] compiled to, 23040 times a frame. */
+static uint16_t __not_in_flash_func(dmgPaletteLut)[64];
+static bool dmgPaletteLutValid = false;
+
+static void buildDmgPaletteLut(void)
+{
+    uint16_t(*pal)[4];
+    switch (currentDmgPaletteType)
+    {
+    case DMG_PALETTE_COLOR:
+        pal = useHSTX ? dmgColorPalette555 : dmgColorPalette444;
+        break;
+    case DMG_PALETTE_GRAYSCALE:
+        pal = useHSTX ? dmgGreyscalePalette555 : dmgGreyscalePalette444;
+        break;
+    case DMG_PALETTE_GREENLCD:
+    default:
+        pal = useHSTX ? dmgGreenPalette555 : dmgGreenPalette444;
+        break;
+    }
+    for (int v = 0; v < 64; v++)
+    {
+        /* Selector 3 (both palette bits set) is not produced by the renderer;
+         * fold it onto 0 so this loop stays inside the [3][4] source table. */
+        int sel = (v & LCD_PALETTE_ALL) >> 4;
+        if (sel > 2)
+            sel = 0;
+        dmgPaletteLut[v] = pal[sel][v & LCD_COLOUR];
+    }
+    dmgPaletteLutValid = true;
+}
+
 #if ENABLE_SOUND
-#define AUDIO_BUFFER_SIZE (AUDIO_SAMPLES * sizeof(u_int32_t))
-uint16_t *audio_stream;
+/* Headroom over the nominal 735 samples/frame so the sink-level trim in
+ * emu_audio_frame_budget() (up to +AUDIO_RATE_TRIM_MAX) always fits. */
+#define AUDIO_FRAME_MAX_SAMPLES 768
+/* Samples rendered per audio_callback() call. Because each slice is pushed to
+ * the sink before the next is rendered, the staging buffer only has to hold one
+ * slice, not a whole frame: 512 bytes of .bss instead of 3072. A normal slice is
+ * ~92 samples (735/8), so this bound only splits the fallback path where the LCD
+ * is off and the whole frame is flushed at once. */
+#define AUDIO_SLICE_MAX_SAMPLES 128
+#define AUDIO_BUFFER_SIZE (AUDIO_SLICE_MAX_SAMPLES * sizeof(u_int32_t))
+/* Static .bss rather than frens_f_malloc(): that allocator hands out PSRAM on
+ * boards that have it (Fruit Jam, Metro, Pico Plus 2), which put this buffer --
+ * memset and read-modify-written four times every frame, then read again by the
+ * output stage -- on the QSPI bus. On boards without PSRAM it came from the SRAM
+ * heap anyway, so this costs those builds nothing. */
+static uint32_t audio_stream_buf[AUDIO_SLICE_MAX_SAMPLES];
+
+/* Audio is rendered in slices spread through the frame instead of one block at
+ * the end. minigb_apu is not cycle-stepped: a single end-of-frame call renders
+ * all ~735 samples from the register state as it stands *after* the frame has
+ * run, so every APU write made during those 16.7ms is applied retroactively to
+ * the whole block, smearing short notes and envelopes. Slicing on the scanline
+ * callback costs nothing in the CPU loop and cuts that quantisation to ~2ms. */
+/* Slicing is free where a framebuffer decouples the emulator from scanout, and
+ * costs video margin where one does not. On the RP2040 PicoDVI path
+ * dvi_getlinebuffer() blocks on freeLineQueue_, so the active window is the
+ * display's critical path: audio rendered at end of frame lands in the
+ * bottom-border/VBlank window and costs nothing, whereas slicing moves the same
+ * work into the active window and spends the queue lead directly. CMake sets
+ * AUDIO_CHUNKS_PER_FRAME to 1 there and renders it all at end of frame. */
+#ifndef AUDIO_CHUNKS_PER_FRAME
+#define AUDIO_CHUNKS_PER_FRAME 8
+#endif
+#if AUDIO_CHUNKS_PER_FRAME > 1
+#define AUDIO_CHUNK_LINE_STEP (LCD_HEIGHT / AUDIO_CHUNKS_PER_FRAME)
+#else
+#define AUDIO_CHUNK_LINE_STEP LCD_HEIGHT
+#endif
+
+static int audio_frame_budget = 0;    /* samples the sink wants this frame */
+static int audio_emitted = 0;         /* samples already rendered+pushed */
+static uint_fast8_t audio_chunk_countdown = AUDIO_CHUNK_LINE_STEP;
+
+/* Render and push audio so that `upto` samples have been emitted this frame.
+ * Each slice is pushed before the next is rendered, so the staging buffer is
+ * reused rather than accumulated. */
+static void __not_in_flash_func(emu_audio_emit_upto)(int upto)
+{
+    while (audio_emitted < upto)
+    {
+        int n = upto - audio_emitted;
+        if (n > AUDIO_SLICE_MAX_SAMPLES)
+            n = AUDIO_SLICE_MAX_SAMPLES;
+        audio_callback(NULL, (uint8_t *)audio_stream_buf, n * (int)sizeof(uint32_t));
+        emu_audio_output(audio_stream_buf, n);
+        audio_emitted += n;
+    }
+}
 #endif
 
 char *GetfileNameFromFullPath(char *fullPath)
@@ -266,10 +357,12 @@ void savesram(char *romname, const char *savedir)
 void emu_set_dmg_palette_type(dmg_palette_type_t dmg_palette_type)
 {
     currentDmgPaletteType = dmg_palette_type;
+    dmgPaletteLutValid = false; // rebuilt on the next frame
 }
 int startemulation(uint8_t *rom, char *romname, const char *savedir, char *ErrorMessage, int USEHSTX)
 {
     useHSTX = USEHSTX;
+    dmgPaletteLutValid = false; // RGB555 vs RGB444 depends on useHSTX
     for (int i = 0; i < 3; i++)
     {
         for (int j = 0; j < 4; j++)
@@ -289,6 +382,18 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
 #endif
     printf("Starting GB emulation\n");
     ErrorMessage[0] = 0;
+#if !PEANUT_FULL_GBC_SUPPORT
+    /* GBC support is compiled out of this build. gb_init() ignores the CGB flag
+     * entirely in that case, so a cartridge with no DMG code path would just
+     * render garbage. Header byte 0x0143: 0x80 = CGB-enhanced but backwards
+     * compatible (runs correctly as DMG, allow it), 0xC0 = CGB-only (reject). */
+    if (rom[0x0143] == 0xC0)
+    {
+        snprintf(ErrorMessage, 40, "Game Boy Color game, DMG-only build");
+        printf("%s\n", ErrorMessage);
+        return 0;
+    }
+#endif
     priv.rom = GBaddress = rom;
     ret = gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
                   &gb_cart_ram_write, &gb_error, &priv);
@@ -302,11 +407,11 @@ int startemulation(uint8_t *rom, char *romname, const char *savedir, char *Error
     printf("Emulator initialized, rom name.\n");
 #if ENABLE_SOUND
     printf("Starting audio\n");
-    printf("Number of %d-byte samples per frame: %d\n", sizeof(u_int32_t), AUDIO_SAMPLES);
-    printf("Allocating %d bytes for sample buffer (%d * %d).\n", AUDIO_BUFFER_SIZE, AUDIO_SAMPLES, sizeof(u_int32_t));
-    printf("Audio Samples per frame: %d\n", AUDIO_SAMPLES);
-    // Audiobuffer is a 32 bit array of AUDIO_SAMPLES
-    audio_stream = (uint16_t *)frens_f_malloc(AUDIO_BUFFER_SIZE);
+    printf("Audio: %d slices/frame, %d-sample staging buffer (%d bytes).\n",
+           AUDIO_CHUNKS_PER_FRAME, AUDIO_SLICE_MAX_SAMPLES, (int)AUDIO_BUFFER_SIZE);
+    audio_frame_budget = 0;
+    audio_emitted = 0;
+    audio_chunk_countdown = AUDIO_CHUNK_LINE_STEP;
     audio_init();
 #endif
     uint32_t save_size = gb_get_save_size(&gb);
@@ -355,19 +460,29 @@ void __not_in_flash_func(lcd_draw_line)(struct gb_s *gb,
 #endif
         for (int x = 0; x < LCD_WIDTH; x++)
         {
-            // uint8_t color_index = pixels[x] & 0x03; // Get the 2-bit color index
-            // buff[x] = currentpalette[color_index]
-            buff[x] = dmgPal[(pixels[x] & LCD_PALETTE_ALL) >> 4][pixels[x] & 3];
+            buff[x] = dmgPaletteLut[pixels[x] & (LCD_PALETTE_ALL | LCD_COLOUR)];
         }
 #if PEANUT_FULL_GBC_SUPPORT
     }
 #endif
 
     infogb_plot_line(line);
-    //   /* If external callback provided, invoke it with current line. */
-    //   if (dvi_drawline_cb) {
-    //       dvi_drawline_cb(line);
-    //   }
+
+#if ENABLE_SOUND && AUDIO_CHUNKS_PER_FRAME > 1
+    /* Sub-frame audio slice. This callback already fires once per visible
+     * scanline, so hooking it costs nothing in the CPU dispatch loop. Sample
+     * position is tracked against LCD_VERT_LINES (154), not LCD_HEIGHT, so the
+     * slices follow real time; the ~6.5% of the frame spent in VBlank is
+     * flushed by emu_run_frame() once the frame completes. When the LCD is off
+     * this never runs and the end-of-frame flush renders the lot, which is the
+     * original behaviour. Compiled out entirely where scanout has no
+     * framebuffer to hide the stall behind -- see AUDIO_CHUNKS_PER_FRAME. */
+    if (--audio_chunk_countdown == 0)
+    {
+        audio_chunk_countdown = AUDIO_CHUNK_LINE_STEP;
+        emu_audio_emit_upto((int)(((uint32_t)audio_frame_budget * (line + 1)) / LCD_VERT_LINES));
+    }
+#endif
     return;
 }
 
@@ -379,25 +494,33 @@ void emu_init_lcd()
     gb.direct.frame_skip = false;
 }
 
-void emu_run_frame()
+/* __not_in_flash_func matters here even though gb_run_frame() already carries
+ * it: GCC inlines that one-line wrapper into this function, so without the
+ * attribute the whole `while (!gb->gb_frame) __gb_step_cpu(gb);` loop stayed in
+ * flash and every emulated instruction paid for a flash-resident loop body plus
+ * an indirect ldr-pc through ____gb_step_cpu_veneer -- while sharing the XIP
+ * cache with the ROM reads gb_rom_read() issues on each fetch. */
+void __not_in_flash_func(emu_run_frame)()
 {
-    switch (currentDmgPaletteType)
+    if (!dmgPaletteLutValid)
     {
-    case DMG_PALETTE_GREENLCD:
-        dmgPal = useHSTX ? dmgGreenPalette555 : dmgGreenPalette444;
-        break;
-    case DMG_PALETTE_COLOR:
-        dmgPal = useHSTX ? dmgColorPalette555 : dmgColorPalette444;
-        break;
-    case DMG_PALETTE_GRAYSCALE:
-    default:
-        dmgPal = useHSTX ? dmgGreyscalePalette555 : dmgGreyscalePalette444;
-        break;
+        buildDmgPaletteLut();
     }
+#if ENABLE_SOUND
+    /* Ask the sink how many samples it wants before running the frame, so the
+     * slices emitted from lcd_draw_line() add up to exactly that. */
+    audio_frame_budget = emu_audio_frame_budget();
+    if (audio_frame_budget > AUDIO_FRAME_MAX_SAMPLES)
+        audio_frame_budget = AUDIO_FRAME_MAX_SAMPLES;
+    else if (audio_frame_budget < 0)
+        audio_frame_budget = 0;
+    audio_emitted = 0;
+    audio_chunk_countdown = AUDIO_CHUNK_LINE_STEP;
+#endif
     gb_run_frame(&gb);
 #if ENABLE_SOUND
-    // send audio buffer to playback device
-    audio_callback(NULL, (uint8_t *)audio_stream, AUDIO_BUFFER_SIZE);
+    /* VBlank's share, plus everything else if the LCD was off this frame. */
+    emu_audio_emit_upto(audio_frame_budget);
 #endif
 }
 void emu_set_gamepad(uint8_t joypad)
@@ -411,10 +534,7 @@ void stopemulation(char *romname, const char *savedir)
     {
         savesram(romname, savedir);
         frens_f_free(priv.cart_ram);
-    }
-    if (audio_stream != NULL)
-    {
-        frens_f_free(audio_stream);
+        priv.cart_ram = NULL;
     }
 #if false
     frens_f_free(gb.wram);

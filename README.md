@@ -1,13 +1,14 @@
 
 # PicoPeanutGB, a DMG Game Boy and Game Boy Color emulator for RP2350/Raspberry Pi Pico 2
 
-This software is a port of [Peanut-GB](https://github.com/deltabeard/Peanut-GB), a DMG and Game Boy Color emulator for RP2350 based microcontroller boards like the RaspberryPi Pico 2. Sound and video are ouput over HDMI.
+This software is a port of [Peanut-GB](https://github.com/deltabeard/Peanut-GB), a DMG and Game Boy Color emulator for RP2350 based microcontroller boards like the RaspberryPi Pico 2. It also runs on the original RP2040 based Raspberry Pi Pico, in Game Boy (DMG) form only — see [Running on the Raspberry Pi Pico (RP2040)](#running-on-the-raspberry-pi-pico-rp2040). Sound and video are ouput over HDMI.
 The code for HDMI output is based on [Shuichi Takano's Pico-InfoNes project](https://github.com/shuichitakano/pico-infones) which in turn is based on [PicoDVI](https://github.com/Wren6991/PicoDVI).
 
 Put your DMG Game Boy (.gb) or Game Boy Color (.gbc) rom files,  and optional [metadata](#using-metadata) on a FAT32 or exFAT formatted SD card. Preferred location for roms: /roms/GB You can organize the roms in directories. A menu is displayed on which you can select the rom to play.
 
 > [!NOTE]
-> The emulator runs well on the Raspberry Pi Pico 2, but is too slow on the original Raspberry Pi Pico or other RP2040 based boards. Only releases for Pico 2 (RP2350) are available. Some Game Boy Color games have image and sound glitches.
+> The emulator runs best on the Raspberry Pi Pico 2. Some Game Boy Color games have image and sound glitches.
+> Releases for the original Raspberry Pi Pico (RP2040) are available again, but with real limitations — see [Running on the Raspberry Pi Pico (RP2040)](#running-on-the-raspberry-pi-pico-rp2040).
 
 ## System requirements - What do yo need?
 
@@ -16,7 +17,7 @@ Put your DMG Game Boy (.gb) or Game Boy Color (.gbc) rom files,  and optional [m
 
 ### Hardware
 
-A **Raspberry Pi Pico 2** on a Pimoroni Pico DV Deno Base, or a **Raspberry Pi Pico 2** on a breadboard or PCB. The emulator is too slow on the original Pico or other RP2040 based boards.
+A **Raspberry Pi Pico 2** on a Pimoroni Pico DV Deno Base, or a **Raspberry Pi Pico 2** on a breadboard or PCB. An original **Raspberry Pi Pico** (RP2040) also works, with the limitations described [below](#running-on-the-raspberry-pi-pico-rp2040).
 
 Other boards that can be used:
 - [Adafruit Fruit Jam](https://www.adafruit.com/product/6200)
@@ -27,6 +28,37 @@ Other boards that can be used:
 
 
 The binary specific for your config and optional PCB gerber files can be downloaded from the [releases](https://github.com/fhoedemakers/pico-peanutGB/releases/latest) page.
+
+## Running on the Raspberry Pi Pico (RP2040)
+
+The emulator runs on the original Pico, but the RP2040 is close to its limit and
+two things are given up to get there. Use a Pico 2 if you have one.
+
+**Game Boy Color games are not supported.** RP2040 builds are DMG only. Colour
+support needs about 35 KB more RAM than the 256 KB part can spare, and costs
+roughly two thirds more work per scanline. Cartridges marked Game Boy Color only
+are refused when you start them, with a message in the menu. Cartridges that are
+Game Boy Color *enhanced* but still run on an original Game Boy work fine, in
+their Game Boy (DMG) form.
+
+**Some games still flicker.** The video pipeline has no framebuffer on RP2040:
+the emulator hands finished scanlines to the display one at a time and has to
+keep pace with it. Quiet scenes have room to spare, but busy ones — lots of
+sprites, or scrolling with a window layer — can miss the deadline, which shows
+up as brief red bands. It is not harmful and the picture recovers on its own,
+but it is visible. How often depends entirely on the game and the scene.
+
+Everything else behaves as it does on the Pico 2: sound, save games, borders,
+palettes, the menu and the settings screen are all unchanged.
+
+RP2040 images are the ones without `pico2` in the file name:
+
+| Board | File |
+| --- | --- |
+| Pimoroni Pico DV Demo Base | `PicoPeanutGB_PimoroniDVI_pico_arm.uf2` |
+| Adafruit DVI + microSD breakout, or the PCB | `PicoPeanutGB_AdafruitDVISD_pico_arm.uf2` |
+| Adafruit Feather RP2040 DVI + SD Wing | `PicoPeanutGB_AdafruitFeatherDVI_arm.uf2` |
+| Waveshare RP2040-PiZero | `PicoPeanutGB_WaveShareRP2040PiZero_arm.uf2` |
 
 
 

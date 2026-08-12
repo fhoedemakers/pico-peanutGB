@@ -12,7 +12,7 @@ IF(NOT CMAKE_BUILD_TYPE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 message("* Current build type is : ${CMAKE_BUILD_TYPE}")
 if (NOT HW_CONFIG)
-    set(HW_CONFIG 8 CACHE STRING "Select the hardware configuration for your board")      
+    set(HW_CONFIG 2 CACHE STRING "Select the hardware configuration for your board")      
 endif()
 if (NOT USE_HSTX)
     set(USE_HSTX 1 CACHE STRING "Use HSTX for display output when possible")
@@ -20,7 +20,7 @@ endif()
 include("pico_shared/BoardConfigs.cmake")
 
 if (NOT PICO_BOARD )
-    set(PICO_BOARD pico2 CACHE STRING "Board type")
+    set(PICO_BOARD pico CACHE STRING "Board type")
     message("PICO_BOARD not set, using default: ${PICO_BOARD}")
 endif()
 
@@ -70,6 +70,123 @@ if(ENABLE_PIO_USB EQUAL 1)
 endif()
 message("PIO USB support: ${ENABLE_PIO_USB}, using PIO: ${PIO_USB_USE_PIO}")
 
+# ---------------------------------------------------------------------------
+# Game Boy Color support.
+#
+# Costs ~32KB of SRAM permanently (WRAM 0x2000->0x8000, VRAM 0x2000->0x4000)
+# and, more importantly for a slow core, a per-pixel cgbMode test in every
+# background, window and sprite inner loop plus a second 160-byte pixelsPrio
+# clear per scanline -- all paid on plain DMG cartridges too.
+#
+# RP2350 has the headroom, so it stays on there. The RP2040's Cortex-M0+ needs
+# roughly 65% more instructions for __gb_draw_line than the M33 does, and the
+# PicoDVI path pins clk_sys at 252MHz (the DVI bit clock is clk_sys, and 640x480p60
+# needs a 25.2MHz pixel clock), so there is no clock headroom to spend either.
+# DMG-only is therefore the default on RP2040.
+#
+# Override either way with -DPEANUT_FULL_GBC_SUPPORT=ON/OFF, e.g. a DMG-only
+# RP2350 build:  EXTRA_CMAKE_ARGS=-DPEANUT_FULL_GBC_SUPPORT=OFF ./bld.sh -c 8 -2
+# ---------------------------------------------------------------------------
+if (NOT DEFINED PEANUT_FULL_GBC_SUPPORT)
+    if (PICO_PLATFORM STREQUAL "rp2040")
+        set(PEANUT_FULL_GBC_SUPPORT OFF)
+    else()
+        set(PEANUT_FULL_GBC_SUPPORT ON)
+    endif()
+endif()
+if (PEANUT_FULL_GBC_SUPPORT)
+    message(STATUS "Game Boy Color support: ON (.gb and .gbc)")
+else()
+    message(STATUS "Game Boy Color support: OFF - DMG only. CGB-only cartridges are rejected at load.")
+endif()
+
+# ---------------------------------------------------------------------------
+# How many slices a video frame's audio is rendered in.
+#
+# Slicing cuts APU timing quantisation from a whole frame (16.7ms) to ~2ms, but
+# it only works where the emulator is decoupled from scanout by a framebuffer:
+# HSTX always, and RP2350 PicoDVI which allocates one in SRAM.
+#
+# RP2040 PicoDVI has no framebuffer, and there the choice is about *where in the
+# frame* the APU work lands rather than how much of it there is. Rendered at end
+# of frame it falls in the bottom-border/VBlank window, where scanout wants no
+# new lines and the ~200-300us costs nothing. Sliced, that same work moves into
+# the active window, where dvi_getlinebuffer() blocks and every microsecond
+# spends the lead DVI_N_LINE_BUFFERS exists to provide -- about 20% of what is
+# left over in Super Mario Land's demo (see the measurements below). Paying video
+# margin for audio granularity is the wrong trade on the one platform with none
+# to spare, so: one slice, at end of frame.
+#
+# (This was first set for a hypothesis that turned out to be wrong -- that the
+# slice burst was itself the red flicker. It was not; the buffer depth below was.
+# The setting survives on the argument above, which does not depend on depth.)
+#
+# Set to 1 on any board to rule audio slicing out while diagnosing video, or
+# raise it (4/8/16) to trade CPU for finer audio timing.
+# ---------------------------------------------------------------------------
+if (NOT DEFINED AUDIO_CHUNKS_PER_FRAME)
+    if (PICO_PLATFORM STREQUAL "rp2040")
+        set(AUDIO_CHUNKS_PER_FRAME 1)
+    else()
+        set(AUDIO_CHUNKS_PER_FRAME 8)
+    endif()
+endif()
+message(STATUS "Audio slices per frame: ${AUDIO_CHUNKS_PER_FRAME}")
+
+# ---------------------------------------------------------------------------
+# Depth of the PicoDVI line-buffer pool (RP2040 only; RP2350 renders into a
+# framebuffer and never touches this path).
+#
+# Measured on Super Mario Land at 252MHz, DMG-only: raw emulation is 9.1ms on
+# the title screen and 11.5-12.5ms in the demo, all inside the 16.67ms frame.
+# Per *line* though: 9116/154 = 59.2us beats the 63.5us the display consumes a
+# source line in, while 11500/154 = 74.7us loses 11.2us on every one. With the
+# library default of 5 buffers (~318us of lead) that runs out after ~28 lines,
+# and because dvi.cpp only accepts a line on an exact `line * 2 == lineCounter_`
+# match, one miss forfeits the frame: red lines and a hard drop to 30fps. Hence
+# 60fps on the title screen and 30fps in the demo with nothing in between.
+#
+# Covering 144 lines at 11.2us needs ~26 buffers, ~40 at the 12.5ms peak. 48 is
+# 61KB of heap at 1280 bytes each, which the DMG-only RP2040 build (75KB static
+# of 256KB) has room for.
+# ---------------------------------------------------------------------------
+if (NOT DEFINED DVI_N_LINE_BUFFERS)
+    if (PICO_PLATFORM STREQUAL "rp2040")
+        set(DVI_N_LINE_BUFFERS 48)
+    else()
+        set(DVI_N_LINE_BUFFERS 5)
+    endif()
+endif()
+message(STATUS "PicoDVI line buffers: ${DVI_N_LINE_BUFFERS}")
+
+# ---------------------------------------------------------------------------
+# Diagnostics, both off by default.
+#
+# EMU_FRAME_STATS  prints average and peak emu_run_frame() time over UART once a
+#                  second. Needs a board with UART_ENABLED=1 (HW_CONFIG 2/3/4;
+#                  HW_CONFIG 1 and 12/13 have it disabled).
+# NORENDER         makes the emulator draw into a throwaway buffer instead of
+#                  the display, so nothing blocks on scanout. Combined with
+#                  EMU_FRAME_STATS this reports raw emulation cost with the
+#                  display pipeline taken out of the picture.
+#
+#   EXTRA_CMAKE_ARGS="-DEMU_FRAME_STATS=1"              ./bld.sh -c 2   # loop cost
+#   EXTRA_CMAKE_ARGS="-DEMU_FRAME_STATS=1 -DNORENDER=1" ./bld.sh -c 2   # emu cost
+#
+# Cached, so they show up in the IDE's CMake settings and can be flipped there.
+# Being cached also means they persist in an existing build directory: an IDE
+# build reuses build/ with whatever cache a previous configure left behind, so a
+# run configured with -DEMU_FRAME_STATS=1 keeps printing until the value is
+# cleared. bld.sh always deletes build/ first, so it is unaffected. To clear it
+# in place: cmake -DEMU_FRAME_STATS=0 build, or just delete build/.
+# ---------------------------------------------------------------------------
+option(EMU_FRAME_STATS "Print average/peak emu_run_frame() time over UART once a second" OFF)
+option(NORENDER "Draw into a throwaway buffer instead of the display (timing diagnostics)" OFF)
+if (EMU_FRAME_STATS OR NORENDER)
+    message(WARNING "Diagnostic build: EMU_FRAME_STATS=${EMU_FRAME_STATS} NORENDER=${NORENDER}."
+                    " NORENDER shows no picture. Not for release.")
+endif()
+
 add_executable(${projectname}
     main.cpp
     splash.cpp
@@ -111,6 +228,12 @@ target_compile_options(${projectname} PRIVATE
     -Wno-cast-function-type
     -Wno-maybe-uninitialized
 )
+
+# NOTE: -flto does not work on this project. The SDK links stdio through
+# --wrap=printf/puts, and GCC's LTO does not resolve those wrappers across
+# partitions, so the link fails with "undefined reference to __wrap_printf"
+# from every translation unit that prints. It also dropped the SCRATCH_X core1
+# stack reservation. Do not re-enable without solving both.
 
 # add_compile_definitions(CFG_TUSB_DEBUG=0)
 # set(GB_FLAGS -DGB_FILE_ADDR=0x10080000 -DNDEBUG)
@@ -155,10 +278,36 @@ target_compile_definitions(${projectname} PUBLIC
     GPIOHSTXINVERTED=${GPIOHSTXINVERTED} # Set to 1 if HSTX pins are inverted: D- = D+ -1
     ENABLE_VU_METER=${ENABLE_VU_METER} # Enable VU meter (fruitjam NeoPixel leds)
     ENABLE_SOUND=1
-    PEANUT_FULL_GBC_SUPPORT=1
+    PEANUT_FULL_GBC_SUPPORT=$<BOOL:${PEANUT_FULL_GBC_SUPPORT}>
+    AUDIO_CHUNKS_PER_FRAME=${AUDIO_CHUNKS_PER_FRAME}
+    # $<BOOL:> because option() yields ON/OFF, and these reach C as values, not
+    # just #if tests: -DNORENDER=OFF compiles only because the preprocessor
+    # treats the unknown identifier as 0, and breaks as soon as one is used in
+    # an expression.
+    EMU_FRAME_STATS=$<BOOL:${EMU_FRAME_STATS}>
+    NORENDER=$<BOOL:${NORENDER}>
+    DVI_N_LINE_BUFFERS=${DVI_N_LINE_BUFFERS}
     WIIPAD_DELAYED_START=${WIIPAD_DELAYED_START} # Delay Wii Pad initialization to avoid I2C errors
     ENABLEDVI=1
     )
+
+# Take core1's boot stack from the linker-reserved SCRATCH_X bank
+# (__StackOneBottom..__StackOneTop) instead of the private 4KB .bss array in the
+# HSTX driver, returning 4KB of SRAM and putting the stack in a bank with no
+# DMA/core0 bus contention. PICO_CORE1_STACK_SIZE claims the full bank; the
+# default (= PICO_STACK_SIZE = 3072) would leave core1's resync-path printf
+# short. HSTX builds only: this mirrors the HSTX macro in FrensHelpers.h, and on
+# the PicoDVI path SCRATCH_X already holds the TMDS tables (a full 4KB stack
+# overflows the bank) while core1 is launched from FrensHelpers with its own
+# stack, so there would be nothing to reclaim.
+if (NOT PICO_PLATFORM STREQUAL "rp2040"
+    AND GPIOHSTXD0 AND GPIOHSTXD1 AND GPIOHSTXD2 AND GPIOHSTXCK)
+    message(STATUS "HSTX build: core1 stack in SCRATCH_X, frees 4KB of SRAM.")
+    target_compile_definitions(${projectname} PUBLIC
+        HSTX_CORE1_STACK_IN_SCRATCH_X=1
+        PICO_CORE1_STACK_SIZE=4096
+    )
+endif()
 if(NOT PICO_PLATFORM STREQUAL "rp2040")
     message(STATUS "Using PICO_PIO_USE_GPIO_BASE=1 for non-rp2040 platforms.")
     target_compile_definitions(${projectname} PRIVATE

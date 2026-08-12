@@ -35,7 +35,11 @@ const int8_t g_settings_visibility_gb[MOPT_COUNT] = {
     0,                               // Exit Game, or back to menu. Always visible when in-game.
     0,                               // Reset Game
     BOOTLOADER_BUILD,                // Return to emuLoader picker (only when built for the loader)
-    0,                               // Save / Restore State
+    // -1, not 0: the in-game menu force-shows Exit Game, Reset Game and Save /
+    // Restore State whatever this array says, so 0 only hides a row in the file
+    // browser. This port has no save-state implementation at all, so the row has
+    // to be suppressed outright, which is what -1 does.
+    -1,                              // Save / Restore State
     1,                               // Screen Mode
     0,                               // Scanlines toggle (superseded by Screen Mode)
     HSTX,                            // Scanline Type (HSTX only)
@@ -60,6 +64,12 @@ const int8_t g_settings_visibility_gb[MOPT_COUNT] = {
     0,                               // YM Audio SMS Only
     1,                               // Enter bootsel mode
     1,                               // Controller Test
+    // Recent Games is rom-browser only and menu.cpp forces it visible on >= 0,
+    // so it already showed via the zero-fill this list left behind. Stated
+    // explicitly so the array length matches MOPT_COUNT again: the next option
+    // appended to the enum then lands on a slot that is missing here, rather
+    // than silently inheriting this one's value. Set to -1 to hide it.
+    1,                               // Recent Games
 };
 const uint8_t g_available_screen_modes_gb[] = {
         0,   // SCANLINE_8_7,
@@ -104,46 +114,6 @@ WORD *currentLineBuf{nullptr};
 // Cached Wii pad state updated once per frame in ProcessAfterFrameIsRendered()
 static uint16_t wiipad_raw_cached = 0;
 #endif
-#if 0
-void __not_in_flash_func(processaudio)()
-{
-    // the audio_buffer is in fact a 32 bit array.
-    // the first 16 bits are the left channel, the next 16 bits are the right channel
-    uint32_t *sample_buffer = (uint32_t *)audio_stream;
-    int samples = 6; //  (739/144)
-
-#if !HSTX
-
-    while (samples)
-    {
-
-        auto &ring = dvi_->getAudioRingBuffer();
-        auto n = std::min<int>(samples, ring.getWritableSize());
-        if (!n)
-        {
-            return;
-        }
-        auto p = ring.getWritePointer();
-        int ct = n;
-        while (ct-- && sample_index < 738)
-        {
-
-            // Extract the left and right channel from the packed 32-bit sample.
-            // Perform proper sign extension by casting to int16_t before widening.
-            uint32_t packed = sample_buffer[sample_index];
-            int16_t l = static_cast<int16_t>(packed >> 16);
-            int16_t r = static_cast<int16_t>(packed & 0xFFFF);
-            // Write unscaled to internal DVI ring buffer (it expects int16_t PCM).
-            *p++ = {l, r};
-            sample_index++;
-        }
-        ring.advanceWritePointer(n);
-        samples -= n;
-    }
-#endif
-}
-#endif
-
 void loadoverlay()
 {
     if (!Frens::isFrameBufferUsed())
@@ -189,104 +159,135 @@ void loadoverlay()
     }
     Frens::loadOverLay(CHOSEN, overlay);
 }
-#if !HSTX
-static void inline processaudioPerFrameDVI()
+// ---------------------------------------------------------------------------
+// Audio output
+//
+// Every sink consumes exactly 44100 stereo frames per second, and the HDMI/DVI
+// signal is exactly 60.000 Hz (25.2MHz / (800*525)), so 735 frames per video
+// frame is the equilibrium rate. The emulator is not paced at 60 Hz though --
+// hstx_paceFrame() targets 59.8261 Hz and waits two vsyncs roughly once every
+// 344 frames -- so a fixed count drifts. Instead of tracking the pacer's
+// constant, the count is nudged against the sink's own fill level, which
+// self-corrects for pacing, clock drift and 59.94 vs 60.00 sinks alike.
+//
+// Previously the emulator produced a fixed 738 samples per frame:
+//   - HSTX and DVI pushed all 738 unresampled (~44152/s), so the ring climbed
+//     to HSTX_AUDIO_DI_HIGH_WATERMARK and dropped 4-sample packets from then on;
+//   - I2S resampled 738->735 assuming exactly 60.00fps (~43972/s), so its ring
+//     starved and the DMA stalled and restarted every few seconds.
+// Both are audible as periodic ticks once the buffer reaches its limit.
+//
+// With the count correct at the source, the linear-interpolation resampler that
+// used to sit in the I2S path is gone: the APU is asked for exactly the number
+// of samples wanted, which is both cheaper and cleaner than interpolating.
+// ---------------------------------------------------------------------------
+#define AUDIO_BASE_SAMPLES_PER_FRAME 735
+#define AUDIO_RATE_TRIM_MAX 8   // clamped so budget stays <= AUDIO_FRAME_MAX_SAMPLES
+#define AUDIO_RATE_TRIM_SCALE 32
+
+// Proportional trim towards `target`, both in stereo frames.
+static inline int audioBudgetFor(int level, int target)
 {
-    uint32_t *sample_buffer = (uint32_t *)audio_stream;
-    constexpr int kSamplesPerFrame = 738; // stereo frames (left/right packed)
+    int adj = (target - level) / AUDIO_RATE_TRIM_SCALE;
+    if (adj > AUDIO_RATE_TRIM_MAX)
+        adj = AUDIO_RATE_TRIM_MAX;
+    else if (adj < -AUDIO_RATE_TRIM_MAX)
+        adj = -AUDIO_RATE_TRIM_MAX;
+    return AUDIO_BASE_SAMPLES_PER_FRAME + adj;
+}
+
+#if !HSTX
+static inline int audioBudgetDVI()
+{
+    auto &ring = dvi_->getAudioRingBuffer();
+    int capacity = (int)ring.getBufferSize();
+    int level = capacity - (int)ring.getFullWritableSize() - 1;
+    return audioBudgetFor(level, capacity / 2);
+}
+
+static inline void audioPushDVI(const uint32_t *samples, int count)
+{
     int i = 0;
-    while (i < kSamplesPerFrame)
+    while (i < count)
     {
         auto &ring = dvi_->getAudioRingBuffer();
-        int writable = ring.getWritableSize();
+        int writable = (int)ring.getWritableSize();
         if (!writable)
-            return; // no space, drop remaining (rare)
-        int n = std::min(kSamplesPerFrame - i, writable);
+            return; // no space, drop remaining (should not happen once locked)
+        int n = std::min(count - i, writable);
         auto p = ring.getWritePointer();
         for (int j = 0; j < n; ++j)
         {
-            uint32_t packed = sample_buffer[i + j];
+            uint32_t packed = samples[i + j];
             int16_t l = static_cast<int16_t>(packed >> 16);
             int16_t r = static_cast<int16_t>(packed & 0xFFFF);
-            // Optionally apply attenuation (reuse same macro as I2S for consistency)
-            l = l >> 2;
-            r = r >> 2;
-            *p++ = {l, r};
+            *p++ = {(int16_t)(l >> 2), (int16_t)(r >> 2)};
         }
         ring.advanceWritePointer(n);
         i += n;
     }
 }
 #else
-// Global HDMI audio frame counter shared across HSTX audio paths
-static int g_hdmi_audio_frame_counter = 0;
-static void inline processaudioPerFrameHSTX() {
-    static audio_sample_t acc_buf[4];
-    static int acc_count = 0;
-    // For HSTX with PicoHDMI, we can use the same improved I2S path as non-HSTX, since PicoHDMI also uses I2S for audio output.
-     uint32_t *sample_buffer = (uint32_t *)audio_stream;
-    constexpr int kSamplesPerFrame = 738; // stereo frames (left/right packed)
-    int i = 0;
-    while (i < kSamplesPerFrame)
-    {
+static inline int audioBudgetHSTX()
+{
+    // The DI ring holds DI_RING_BUFFER_SIZE (256) packets of 4 samples;
+    // hstx_push_audio_sample() discards a batch once the level reaches
+    // HSTX_AUDIO_DI_HIGH_WATERMARK (200 packets). Hold ~64 packets, ~5.8ms.
+    int level = (int)hstx_di_queue_get_level() * 4;
+    return audioBudgetFor(level, 64 * 4);
+}
 
-        uint32_t packed = sample_buffer[i];
+static inline void audioPushHSTX(const uint32_t *samples, int count)
+{
+    for (int i = 0; i < count; ++i)
+    {
+        uint32_t packed = samples[i];
         int16_t l = static_cast<int16_t>(packed >> 16);
         int16_t r = static_cast<int16_t>(packed & 0xFFFF);
 #if ENABLE_VU_METER
         if (settings.flags.enableVUMeter)
         {
             addSampleToVUMeter(l);
-        } 
+        }
 #endif
-       l = l >> 2;
-         r = r >> 2;
-       hstx_push_audio_sample(l, r);
-       i++;
-    } 
+        hstx_push_audio_sample(l >> 2, r >> 2);
+    }
 }
 #endif
 
-// #define IMPROVED_I2S_DISABLE 0 // set to 1 to disable improved I2S path and use legacy simple path
-static void inline processaudioPerFrameI2S()
+#if EXT_AUDIO_IS_ENABLED
+#ifndef I2S_AUDIO_RING_SIZE
+#define I2S_AUDIO_RING_SIZE 1024
+#endif
+static inline int audioBudgetI2S()
 {
-    // Improved I2S path:
-    // 1. Convert emulator frame audio (738 input samples @ ~44.28 kHz frame-based) to 44.1 kHz (735 samples) to
-    //    match I2S configuration (PICO_AUDIO_I2S_FREQ).
-    // 2. Apply gentle DC blocking filter to remove bias and increase headroom.
-    // 3. Apply adjustable gain (bit shift or Q15 multiplier) with optional soft clip.
-    // 4. Feed continuous ring buffer via EXT_AUDIO_ENQUEUE_SAMPLE (already DMA driven in driver).
+    int level = I2S_AUDIO_RING_SIZE - 1 - EXT_AUDIO_GET_FREE();
+    return audioBudgetFor(level, I2S_AUDIO_RING_SIZE / 2);
+}
 
-#ifndef IMPROVED_I2S_DISABLE
-    constexpr int kInSamplesPerFrame = 738;                             // emulator delivers this per video frame
-    constexpr int kFramesPerSecond = 60;                                // video refresh
-    constexpr int kTargetRate = PICO_AUDIO_I2S_FREQ;                    // normally 44100
-    constexpr int kOutSamplesPerFrame = kTargetRate / kFramesPerSecond; // 44100 / 60 = 735
-    static_assert(kTargetRate % kFramesPerSecond == 0, "I2S target rate must divide by FPS for fixed per-frame output count");
+// Gain: either a shift (fast) or a Q15 multiplier (define AUDIO_OUTPUT_GAIN_Q15).
+#ifndef AUDIO_OUTPUT_GAIN_SHIFT
+#define AUDIO_OUTPUT_GAIN_SHIFT 2 // ~ /4, matches the DVI and HSTX paths
+#endif
 
-    uint32_t *sample_buffer = (uint32_t *)audio_stream; // packed emulator samples
-
-    // Resample using simple linear interpolation: output index -> fractional input position
-    // pos = j * kInSamplesPerFrame / kOutSamplesPerFrame
-    // Keep DC-block filter state across frames.
+static inline void audioPushI2S(const uint32_t *samples, int count)
+{
+    // Gentle DC blocker: y[n] = x[n] - x[n-1] + a*y[n-1], a ~ 0.99976 in Q15
+    // (corner ~1.7Hz at 44.1kHz). State persists across frames and slices.
     struct DcBlockState
     {
-        int32_t yl = 0; // previous filtered sample (Q15 domain scaled back to int16 range)
+        int32_t yl = 0;
         int32_t yr = 0;
-        int16_t xl_prev = 0; // previous raw input sample
+        int16_t xl_prev = 0;
         int16_t xr_prev = 0;
     };
     static DcBlockState dcState{};
+    constexpr int32_t kDcCoeffQ15 = 32760;
 
-    // Q15 coefficient for 0.995 high-pass: y[n] = x[n]-x[n-1] + a*y[n-1]
-    constexpr int32_t kDcCoeffQ15 = 32760; // ~0.9997? Actually 0.999 -> could tune; using slightly lower (0.995 = 32540). Adjust for taste.
-    // Use 0.995 (32540). Replace constant above if wanting exactly 0.995.
-
-    auto dc_block = [&](int16_t x, int16_t &x_prev, int32_t &y_prev) -> int16_t
+    auto dc_block = [](int16_t x, int16_t &x_prev, int32_t &y_prev) -> int16_t
     {
-        int32_t y = (int32_t)x - (int32_t)x_prev + ((int64_t)kDcCoeffQ15 * y_prev >> 15);
+        int32_t y = (int32_t)x - (int32_t)x_prev + (int32_t)(((int64_t)kDcCoeffQ15 * y_prev) >> 15);
         x_prev = x;
-        // Soft limit in case of slight overshoot
         if (y > 32767)
             y = 32767;
         else if (y < -32768)
@@ -295,73 +296,18 @@ static void inline processaudioPerFrameI2S()
         return (int16_t)y;
     };
 
-    // Optional simple 5-tap binomial low-pass (commented out by default); enable if high-frequency alias present.
-    // Keeping minimal overhead by disabled default.
-    struct LP5State
+    for (int i = 0; i < count; ++i)
     {
-        int16_t d[5]{0, 0, 0, 0, 0};
-    };
-    static LP5State lpL, lpR;
-    auto lowpass5 = [](int16_t x, LP5State &st) -> int16_t
-    {
-        // shift
-        st.d[4] = st.d[3];
-        st.d[3] = st.d[2];
-        st.d[2] = st.d[1];
-        st.d[1] = st.d[0];
-        st.d[0] = x;
-        // 1 4 6 4 1 kernel /16
-        int32_t acc = st.d[0] + 4 * st.d[1] + 6 * st.d[2] + 4 * st.d[3] + st.d[4];
-        return (int16_t)(acc >> 4);
-    };
+        uint32_t packed = samples[i];
+        int16_t l = static_cast<int16_t>(packed >> 16);
+        int16_t r = static_cast<int16_t>(packed & 0xFFFF);
 
-    // Gain control: either shift (fast) or Q15 multiplier (define AUDIO_OUTPUT_GAIN_Q15).
-#ifndef AUDIO_OUTPUT_GAIN_SHIFT
-#define AUDIO_OUTPUT_GAIN_SHIFT 2 // default attenuation ~ /4 to match DVI path (was 5 previously => too quiet)
-#endif
-
-#ifdef AUDIO_OUTPUT_GAIN_Q15
-    static uint16_t gain_q15 = AUDIO_OUTPUT_GAIN_Q15; // allow external modification
-#endif
-
-    for (int j = 0; j < kOutSamplesPerFrame; ++j)
-    {
-        // Fractional mapping
-        // Multiply first to preserve precision (both small ints); using 64-bit to avoid overflow
-        uint64_t num = (uint64_t)j * kInSamplesPerFrame;
-        uint32_t pos_int = num / kOutSamplesPerFrame;                                     // integer part
-        uint32_t pos_next = (pos_int + 1 < kInSamplesPerFrame) ? (pos_int + 1) : pos_int; // clamp at end
-        uint32_t frac_num = num - (uint64_t)pos_int * kOutSamplesPerFrame;                // remainder relative to denominator
-        // Retrieve packed 32-bit samples
-        uint32_t s0 = sample_buffer[pos_int];
-        uint32_t s1 = sample_buffer[pos_next];
-        int16_t l0 = (int16_t)(s0 >> 16);
-        int16_t r0 = (int16_t)(s0 & 0xFFFF);
-        int16_t l1 = (int16_t)(s1 >> 16);
-        int16_t r1 = (int16_t)(s1 & 0xFFFF);
-        // Linear interpolation: value = v0 + (v1 - v0) * frac
-        // frac = frac_num / kOutSamplesPerFrame
-        int32_t dl = (int32_t)l1 - (int32_t)l0;
-        int32_t dr = (int32_t)r1 - (int32_t)r0;
-        int16_t l = (int16_t)(l0 + (dl * (int32_t)frac_num) / kOutSamplesPerFrame);
-        int16_t r = (int16_t)(r0 + (dr * (int32_t)frac_num) / kOutSamplesPerFrame);
-
-        // DC block per channel
         l = dc_block(l, dcState.xl_prev, dcState.yl);
         r = dc_block(r, dcState.xr_prev, dcState.yr);
 
-        // Optional smoothing low-pass (disabled by default for brightness)
-#ifdef ENABLE_I2S_LP5_FILTER
-        l = lowpass5(l, lpL);
-        r = lowpass5(r, lpR);
-#endif
-
-        // Apply gain
 #ifdef AUDIO_OUTPUT_GAIN_Q15
-        int32_t l32 = (int32_t)l * gain_q15;
-        l = (int16_t)(l32 >> 15);
-        int32_t r32 = (int32_t)r * gain_q15;
-        r = (int16_t)(r32 >> 15);
+        l = (int16_t)(((int32_t)l * AUDIO_OUTPUT_GAIN_Q15) >> 15);
+        r = (int16_t)(((int32_t)r * AUDIO_OUTPUT_GAIN_Q15) >> 15);
 #else
         l = (int16_t)(l >> AUDIO_OUTPUT_GAIN_SHIFT);
         r = (int16_t)(r >> AUDIO_OUTPUT_GAIN_SHIFT);
@@ -375,44 +321,51 @@ static void inline processaudioPerFrameI2S()
         }
 #endif
     }
-#else // IMPROVED_I2S_DISABLE
-    // Legacy simple path (still here for fallback/testing)
-    uint32_t *sample_buffer = (uint32_t *)audio_stream;
-    constexpr int kSamplesPerFrame = 738;
-    for (int i = 0; i < kSamplesPerFrame; ++i)
-    {
-        uint32_t packed = sample_buffer[i];
-        int16_t l = static_cast<int16_t>(packed >> 16);
-        int16_t r = static_cast<int16_t>(packed & 0xFFFF);
-#ifdef AUDIO_OUTPUT_GAIN_SHIFT
-        l = l >> AUDIO_OUTPUT_GAIN_SHIFT;
-        r = r >> AUDIO_OUTPUT_GAIN_SHIFT;
-#endif
-        EXT_AUDIO_ENQUEUE_SAMPLE(l, r);
-#if ENABLE_VU_METER
-        if (settings.flags.enableVUMeter)
-        {
-            addSampleToVUMeter(l);
-        }
-#endif
-    }
-#endif // IMPROVED_I2S_DISABLE
 }
-void inline output_audio_per_frame()
+#endif // EXT_AUDIO_IS_ENABLED
+
+// Which sink is live can change between frames (headphone jack), so the budget
+// query and the pushes select it the same way.
+static inline bool audioUseExternal()
 {
 #if EXT_AUDIO_IS_ENABLED
-    if (settings.flags.useExtAudio == 1 || Frens::isHeadPhoneJackConnected())
+    return settings.flags.useExtAudio == 1 || Frens::isHeadPhoneJackConnected();
+#else
+    return false;
+#endif
+}
+
+// Called by gb.c once per video frame, before the frame is emulated.
+int __not_in_flash_func(emu_audio_frame_budget)()
+{
+#if EXT_AUDIO_IS_ENABLED
+    if (audioUseExternal())
+        return audioBudgetI2S();
+#endif
+#if !HSTX
+    return audioBudgetDVI();
+#else
+    return audioBudgetHSTX();
+#endif
+}
+
+// Called by gb.c several times per video frame, as the frame is emulated.
+void __not_in_flash_func(emu_audio_output)(const uint32_t *samples, int count)
+{
+#if EXT_AUDIO_IS_ENABLED
+    if (audioUseExternal())
     {
-        processaudioPerFrameI2S();
+        audioPushI2S(samples, count);
         return;
     }
 #endif
 #if !HSTX
-    processaudioPerFrameDVI();
+    audioPushDVI(samples, count);
 #else
-    processaudioPerFrameHSTX();
+    audioPushHSTX(samples, count);
 #endif
 }
+
 static DWORD prevButtons[2]{};
 static DWORD prevButtonssystem[2]{};
 static DWORD prevOtherButtons[2]{};
@@ -695,41 +648,54 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
     {
         prevline = MARGINTOP - 1;
     }
+    // True when scanout recycles a small pool of line buffers rather than giving
+    // every line its own storage. The GB writes only pixels LEFTMARGIN..+159 of
+    // a buffer, so whatever else was in one persists into the next line it is
+    // reused for -- which made the FPS digits reappear every
+    // DVI_N_LINE_BUFFERS lines down the screen. On the framebuffer paths each
+    // line has its own storage and the border holds the bezel, so there is
+    // nothing to repair there and blanking would punch a hole in the artwork.
+#if HSTX
+    constexpr bool recycledLineBuffers = false;
+#elif FRAMEBUFFERISPOSSIBLE
+    const bool recycledLineBuffers = !Frens::isFrameBufferUsed();
+#else
+    constexpr bool recycledLineBuffers = true;
+#endif
+
     // Display frame rate
-    if (settings.flags.displayFrameRate)
+    if (settings.flags.displayFrameRate && line >= FPSSTART && line < FPSEND)
     {
-        if (line >= FPSSTART && line < FPSEND)
+        WORD *fpsBuffer = currentLineBuf - LEFTMARGIN + FPSLEFTMARGIN;
+        int rowInChar = line % 8;
+        for (auto i = 0; i < 2; i++)
         {
-            WORD *fpsBuffer = currentLineBuf - LEFTMARGIN + FPSLEFTMARGIN;
-            int rowInChar = line % 8;
-            for (auto i = 0; i < 2; i++)
+            char firstFpsDigit = fpsString[i];
+            char fontSlice = getcharslicefrom8x8font(firstFpsDigit, rowInChar);
+            for (auto bit = 0; bit < 8; bit++)
             {
-                char firstFpsDigit = fpsString[i];
-                char fontSlice = getcharslicefrom8x8font(firstFpsDigit, rowInChar);
-                for (auto bit = 0; bit < 8; bit++)
+                if (fontSlice & 1)
                 {
-                    if (fontSlice & 1)
-                    {
-                        *fpsBuffer++ = fpsfgcolor;
-                    }
-                    else
-                    {
-                        *fpsBuffer++ = fpsbgcolor;
-                    }
-                    fontSlice >>= 1;
+                    *fpsBuffer++ = fpsfgcolor;
                 }
+                else
+                {
+                    *fpsBuffer++ = fpsbgcolor;
+                }
+                fontSlice >>= 1;
             }
         }
-        // #if FPSLEFTMARGIN < LEFTMARGIN
-        //         if (line >= FPSEND)
-        //         {
-        //             WORD *fpsBuffer = currentLineBuf - LEFTMARGIN + FPSLEFTMARGIN;
-        //             for (auto i = 0; i < 16; i++)
-        //             {
-        //                 *fpsBuffer++ = 0;
-        //             }
-        //         }
-        // #endif
+    }
+    else if (recycledLineBuffers)
+    {
+        // Keep the same 16 pixels deterministic on every other line, so a
+        // recycled buffer cannot carry a stale glyph into it. Also clears the
+        // digits when the overlay is switched off.
+        WORD *fpsBuffer = currentLineBuf - LEFTMARGIN + FPSLEFTMARGIN;
+        for (auto i = 0; i < 16; i++)
+        {
+            *fpsBuffer++ = 0;
+        }
     }
 #if !HSTX
 #if FRAMEBUFFERISPOSSIBLE
@@ -744,14 +710,12 @@ void __not_in_flash_func(infogb_plot_line)(uint_fast8_t line)
             WORD *currentLineBuffer = currentLineBuffer_->data();
             __builtin_memcpy(buffer, currentLineBuffer, 512 * sizeof(currentLineBuffer[0]));
             dvi_->setLineBuffer(line - 1, b);
-            // processaudio();
         }
         dvi_->setLineBuffer(line, currentLineBuffer_);
 #if FRAMEBUFFERISPOSSIBLE
     }
 #endif
 #endif
-    // processaudio();
     prevline = line;
 #endif
 }
@@ -760,26 +724,57 @@ bool load_rom(char *, unsigned char *)
 {
     return true;
 }
+#if EMU_FRAME_STATS
+// Frame cost report over UART, once a second.
+//
+// The on-screen FPS counter cannot answer "how far over budget are we?" on the
+// RP2040 PicoDVI path. There is no framebuffer there, so the emulator is paced
+// by dvi_getlinebuffer() blocking on a 5-deep line queue, and dvi.cpp only
+// accepts a line when `line * 2 == lineCounter_` exactly. Miss one scanline
+// deadline and that equality never matches again for the rest of the frame:
+// every remaining line renders from listActiveError_ (red) and the loop slips a
+// whole display frame. So the counter reads 30 whether the emulator is 1% or
+// 90% over budget.
+//
+// emu_run_frame() includes that blocking, so on a normal build this measures
+// the display-bound loop. Build with -DNORENDER=1 to bypass the line queue
+// entirely and measure raw emulation cost instead; the difference between the
+// two is the whole diagnosis.
+static void reportFrameStats(uint32_t emu_us)
+{
+    static uint32_t acc = 0, peak = 0, n = 0;
+    acc += emu_us;
+    if (emu_us > peak)
+        peak = emu_us;
+    if (++n >= 60)
+    {
+        printf("emu frame: avg %lu us, peak %lu us (budget 16667, norender=%d)\n",
+               (unsigned long)(acc / n), (unsigned long)peak, NORENDER);
+        acc = peak = n = 0;
+    }
+}
+#endif
+
 void __not_in_flash_func(process)()
 {
     DWORD pdwPad1, pdwPad2, pdwSystem; // have only meaning in menu
-    int fcount = 0;
     emu_init_lcd();
-    uint32_t ti1, ti2;
-    int frametime = 0;
     while (reset == false)
     {
         Frens::PaceFrames60fps(false);
         //Frens::waitForVSync();
         Frens::pollHeadPhoneJack();
         processinput(false, &pdwPad1, &pdwPad2, &pdwSystem, false, nullptr);
-        ti1 = Frens::time_us();
+        // Audio is rendered and pushed in slices from lcd_draw_line() while the
+        // frame runs, so there is no separate output step here any more.
+#if EMU_FRAME_STATS
+        uint32_t emu_t0 = Frens::time_us();
+#endif
         emu_run_frame();
-        ti2 = Frens::time_us();
-        frametime = ti2 - ti1;
-        fcount++;
+#if EMU_FRAME_STATS
+        reportFrameStats((uint32_t)(Frens::time_us() - emu_t0));
+#endif
         ProcessAfterFrameIsRendered(false);
-        output_audio_per_frame();
     }
 }
 

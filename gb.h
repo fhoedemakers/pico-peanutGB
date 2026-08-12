@@ -28,7 +28,6 @@ typedef enum {
 	DMG_PALETTE_COLOR,
 	DMG_PALETTE_GRAYSCALE
 } dmg_palette_type_t;
-extern uint16_t *audio_stream;
 extern int sample_size;
 extern uint8_t *GBaddress; // pointer to the GB ROM file
 extern uint16_t *currentpalette;
@@ -55,6 +54,16 @@ void emu_set_gamepad(uint8_t joypad);
 void emu_set_dmg_palette_type(dmg_palette_type_t palette_type); 
 WORD *dvi_getlinebuffer(uint_fast8_t line);
 void infogb_plot_line(uint_fast8_t line);
+#if ENABLE_SOUND
+/* Provided by main.cpp -- the audio sink is board/settings dependent.
+ *
+ * emu_audio_frame_budget() returns how many stereo frames to render for the
+ * coming video frame. emu_audio_output() pushes `count` stereo frames (packed
+ * left<<16 | right) to the active sink; it is called several times per video
+ * frame as the frame is emulated, not once at the end. */
+int emu_audio_frame_budget(void);
+void emu_audio_output(const uint32_t *samples, int count);
+#endif
 void *frens_f_malloc(size_t size);
 void frens_f_free(void *ptr);
 #ifdef __cplusplus

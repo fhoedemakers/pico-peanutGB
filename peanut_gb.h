@@ -41,7 +41,7 @@
 # define __has_include(x) 0
 #endif
 
-#include <stdlib.h>	/* Required for qsort and abort */
+#include <stdlib.h>	/* Required for abort */
 #include <stdint.h>	/* Required for int types */
 #include <string.h>	/* Required for memset */
 #include <time.h>	/* Required for tm struct */
@@ -1554,18 +1554,32 @@ struct sprite_data {
 };
 
 #if PEANUT_GB_HIGH_LCD_ACCURACY
-static int compare_sprites(const void *in1, const void *in2)
+/* Sort the sprites visible on this line by X, then by OAM index -- the DMG
+ * priority order.
+ *
+ * Replaces a qsort() call made once per sprite-bearing scanline. qsort lives in
+ * flash and reaches its comparator through a function pointer; this inlines
+ * into __gb_draw_line, which is in RAM. Sprites are appended in ascending OAM
+ * index, so a stable sort on X alone reproduces exactly the (x, sprite_number)
+ * ordering the old comparator produced. Insertion sort suits the input: at most
+ * NUM_SPRITES entries, typically a handful, and usually already near-ordered.
+ */
+static inline void __gb_sort_sprites(struct sprite_data *sprites,
+				     const uint8_t count)
 {
-	const struct sprite_data *sd1, *sd2;
-	int x_res;
+	for(uint_fast8_t i = 1; i < count; i++)
+	{
+		const struct sprite_data key = sprites[i];
+		uint_fast8_t j = i;
 
-	sd1 = (struct sprite_data *)in1;
-	sd2 = (struct sprite_data *)in2;
-	x_res = (int)sd1->x - (int)sd2->x;
-	if(x_res != 0)
-		return x_res;
+		while(j > 0 && sprites[j - 1].x > key.x)
+		{
+			sprites[j] = sprites[j - 1];
+			j--;
+		}
 
-	return (int)sd1->sprite_number - (int)sd2->sprite_number;
+		sprites[j] = key;
+	}
 }
 #endif
 
@@ -1932,8 +1946,7 @@ void __not_in_flash_func(__gb_draw_line)(struct gb_s *gb)
 #endif
 		/* If maximum number of sprites reached, prioritise X
 		 * coordinate and object location in OAM. */
-		qsort(&sprites_to_render[0], number_of_sprites,
-				sizeof(sprites_to_render[0]), compare_sprites);
+		__gb_sort_sprites(&sprites_to_render[0], number_of_sprites);
 #if PEANUT_FULL_GBC_SUPPORT
 		}
 #endif

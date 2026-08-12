@@ -17,12 +17,22 @@ then
 	echo "Please install picotool from https://github.com/raspberrypi/picotool.git" 
 	exit
 fi
-# build for Pico is disabled. RP2040 builds are too slow.
-# HWCONFIGS="1 2 3 4"
-# for HWCONFIG in $HWCONFIGS
-# do	
-# 	./bld.sh -c $HWCONFIG
-# done
+# build for Pico (RP2040)
+#
+# These were dropped for years as too slow. They are back, with limits: the
+# builds are DMG only (PEANUT_FULL_GBC_SUPPORT defaults to OFF on RP2040, since
+# Game Boy Color costs ~35KB of SRAM the 256KB part has not got and ~66% more
+# work per scanline), and demanding scenes can still show red flicker. See the
+# RP2040 section of the README.
+#
+# HW_CONFIG 3 and 4 are RP2040-only boards. 6, 10, 11 and 12 also build for
+# RP2040 but are not published: 11 is deprecated, and the others are listed
+# under Pico 2 below.
+HWCONFIGS="1 2 3 4"
+for HWCONFIG in $HWCONFIGS
+do
+	./bld.sh -c $HWCONFIG || exit 1
+done
 # build for Pico 2 arm and risc-v
 # build for Pico 2 (w) -arm-s
 # No pico2_w binaries for HWConfig 1 (#132)
