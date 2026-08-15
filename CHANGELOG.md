@@ -1,6 +1,6 @@
 # CHANGELOG
 
-Brings back support for the original **Raspberry Pi Pico (RP2040)**, with limitations, and reworks **audio** so it no longer drifts against the output clock. Also a round of speed work and a handful of display fixes.
+Brings back support for the original **Raspberry Pi Pico (RP2040)**, with limitations, and reworks **audio** so it no longer drifts against the output clock. Adds a **Recently played** list of the last 20 games, opened with Button3 in the menu. Also a round of speed work and a handful of display fixes.
 
 # General Info
 
@@ -29,6 +29,29 @@ being too slow. They come with two limitations, both described in the README:
 Everything else — sound, save games, borders, palettes, the menu and the
 settings screen — behaves as it does on the Pico 2. A Pico 2 is still the
 better choice where you have one.
+
+## Recently played
+
+The menu now keeps a list of the **last 20 games you started**, newest first.
+Open it with **Button3** in the rom browser — X on a SNES controller, Y on
+XInput, Triangle on PlayStation, C on Genesis, X on a Wii Classic pad — or from
+the new **Recently played** entry at the top of the settings menu.
+
+In the list, **Button2** starts the highlighted game, **SELECT** removes it from
+the list, **START** shows its artwork, and **Button1** closes the list. The
+settings menu only offers the entry when it is opened from the rom browser, not
+from inside a running game, which is also the route for pads without a Button3 —
+notably a NES pad on the controller port.
+
+The list is plain text in `/recent_GB.txt` in the SD card root, one line per
+game, so it survives a reboot and can be edited or deleted on a PC. A game that
+is no longer on the card is reported as missing when you try to start it and can
+be dropped with SELECT. A damaged or unreadable list simply comes up empty —
+unlike the settings file, nothing gets reset.
+
+On boards without PSRAM, the game whose image is currently in flash is tagged
+**[READY]**: that is the one that starts without waiting for the rom to be
+written to flash first.
 
 ## Audio
 
