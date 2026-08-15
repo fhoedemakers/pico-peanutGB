@@ -1,6 +1,6 @@
 # CHANGELOG
 
-Brings back support for the original **Raspberry Pi Pico (RP2040)**, with limitations, and reworks **audio** so it no longer drifts against the output clock. Also a round of speed work and two display-driver fixes.
+Brings back support for the original **Raspberry Pi Pico (RP2040)**, with limitations, and reworks **audio** so it no longer drifts against the output clock. Also a round of speed work and a handful of display fixes.
 
 # General Info
 
@@ -67,8 +67,16 @@ Mostly relevant to Game Boy Color titles, which were closest to the limit:
   explains occasional random freezes reported earlier.
 - **Fixed the frame rate counter appearing several times down the screen** on
   boards without a framebuffer.
+- **Fixed the scanline setting being ignored when a game starts.** Games came up
+  without the scanline effect you had selected, and only picked it up once you
+  had opened the settings menu and left it again. Starting a game now applies
+  your chosen screen mode, scanline style and aspect ratio straight away. Most
+  visible on boards that boot directly into a game, which is every board without
+  PSRAM.
 - **Removed the Save/Restore State entry from the in-game settings menu.** This
   emulator has no save state support, so the entry did nothing.
+- Resetting the settings to their defaults no longer leaves an unused internal
+  scanline switch at whatever value the settings file happened to hold.
 
 # v0.11 Release notes
 

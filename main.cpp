@@ -808,17 +808,19 @@ int main()
 #if HSTX
     pico_hdmi_set_audio_sample_rate(44100);
 #endif
-#if !HSTX
     if (settings.screenMode != ScreenMode::NOSCANLINE_1_1 && settings.screenMode != ScreenMode::SCANLINE_1_1)
     {
         // force NOSCANLINE_1_1 mode for GB, as the framebuffer is only 160x144 pixels
         settings.screenMode = ScreenMode::NOSCANLINE_1_1;
         FrensSettings::savesettings();
     }
+    // Must go through applyScreenMode on both display paths: it is the only
+    // place that pushes scanline *type* and aspect ratio to the HSTX driver as
+    // well as the on/off bit. Calling hstx_setScanLines() directly here left
+    // type/aspect at their power-on defaults until the first menu exit, so a
+    // game started straight from boot (non-PSRAM builds reboot into the rom,
+    // skipping the menu entirely) rendered with the wrong scanline settings.
     scaleMode8_7_ = Frens::applyScreenMode(settings.screenMode);
-#else
-    hstx_setScanLines(settings.flags.scanlineOn);
-#endif
 
     bool showSplash = true;
     g_settings_visibility = g_settings_visibility_gb;
