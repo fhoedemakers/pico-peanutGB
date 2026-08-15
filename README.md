@@ -7,7 +7,7 @@ The emulator core is a port of [Peanut-GB](https://github.com/deltabeard/Peanut-
 
 Video output uses the RP2350's HSTX hardware where the board configuration supports it, using the [pico_hdmi driver](https://github.com/fliperama86/pico_hdmi) by [@fliperama86](https://github.com/fliperama86). The remaining configurations use PicoDVI, based on [Shuichi Takano's Pico-InfoNes project](https://github.com/shuichitakano/pico-infones), which in turn is based on [PicoDVI](https://github.com/Wren6991/PicoDVI). Sound normally travels with the picture in the HDMI stream; boards with a DAC or line-out jack can output it separately instead.
 
-Put your DMG Game Boy (.gb) or Game Boy Color (.gbc) rom files,  and optional [metadata](#using-metadata) on a FAT32 or exFAT formatted SD card. Preferred location for roms: /roms/GB You can organize the roms in directories. A menu is displayed on which you can select the rom to play.
+Put your DMG Game Boy (.gb) or Game Boy Color (.gbc) rom files,  and optional [metadata](#using-metadata) on a FAT32 or exFAT formatted SD card. Preferred location for roms: /roms/GB You can organize the roms in directories. A menu is displayed on which you can select the rom to play. The last 20 games you started are kept in a [recently played list](#recently-played-games), one button press away in the menu.
 
 > [!NOTE]
 > The emulator runs best on the Raspberry Pi Pico 2. Some Game Boy Color games have image and sound glitches.
@@ -206,15 +206,19 @@ RP2040 images are the ones without `pico2` in the file name:
 
 Below the button mapping for different controllers. You can also use a USB-keyboard.
 
-|     | (S)NES | Genesis | XInput | Dual Shock/Sense |
-| --- | ------ | ------- | ------ | ---------------- |
-| Button1 | B (*)  |    A    |   A    |    X             |
-| Button2 | A  |    B    |   B    |   Circle         |
-| Select  | select | Mode or C | Select | Select     |
+|     | (S)NES | Genesis | XInput | Dual Shock/Sense | Wii Classic |
+| --- | ------ | ------- | ------ | ---------------- | ----------- |
+| Button1 | B (*)  |    A    |   A    |    X             |   B         |
+| Button2 | A  |    B    |   B    |   Circle         |   A         |
+| Button3 | X (SNES only) | C | Y | Triangle    |   X         |
+| Select  | select | Mode or C | Select | Select     |   Select    |
 
 It is not advised to use a NES controller because it lacks enough buttons.
 
 (*) On SNES USB-controller press Y once to activate the B-button.
+
+> [!NOTE]
+> An original NES controller has no Button3. Everything reachable with it can also be reached from the settings menu.
 
 ## in menu
 
@@ -222,8 +226,34 @@ It is not advised to use a NES controller because it lacks enough buttons.
 - LEFT/RIGHT: next/previous page.
 - Button2 : Open folder/flash and start game.
 - Button1 : Back to parent folder.
+- Button3 : Open the [recently played list](#recently-played-games).
 - START: Show metadata and box art (when available). 
 - SELECT: Opens a setting menu. Here you can change settings like screen mode, scanlines, framerate display, menu colors and other board specific settings. Settings can also be changed in-game by pressing some button combinations as explained below. The settings menu can also be opened in-game.
+
+## Recently played games
+
+The menu keeps a list of the **last 20 games you started**, most recent first. Open it with **Button3** in the menu, or with the **Recently played** entry at the top of the settings menu. That entry is only there when the settings menu is opened from the menu — a game cannot be started from inside a running game.
+
+> [!NOTE]
+> On an original 3-button Genesis Mini controller, C acts as SELECT and opens the settings menu instead. Take the **Recently played** entry there.
+
+In the list:
+
+| Button | Action |
+| ------ | ------ |
+| UP/DOWN | Select a game. |
+| Button2 | Start the highlighted game. |
+| Button1 | Close the list and return to the menu. |
+| SELECT | Remove the highlighted game from the list. Asks for confirmation first. This only removes the entry, the rom on the SD card is left alone. |
+| START | Show [metadata](#using-metadata) and box art (when available). |
+
+Games are added to the list automatically when you start them, so nothing has to be enabled. Starting a game that is already in the list moves it back to the top. The list closes by itself after a minute without input.
+
+The list is kept in **`/recent_GB.txt`** in the root of the SD card, as plain text with one game per line. It survives a reboot and can be read, edited or deleted on a PC. Deleting the file simply empties the list, and a damaged file is treated as an empty list — unlike the settings file, nothing else is reset. Each emulator running under pico-bootLoader keeps its own list.
+
+If a game was moved, renamed or deleted on the SD card in the meantime, the list says so instead of starting it. Use SELECT to remove such an entry.
+
+On boards **without** PSRAM, one entry can be tagged **[READY]**. That is the game whose rom is currently written to flash, which is the one that starts without waiting for the flashing step described [above](#what-the-pimoroni-pico-plus-2-adds).
 
 ## Emulator (in game)
 
@@ -246,6 +276,7 @@ It is not advised to use a NES controller because it lacks enough buttons.
   - S: Start
   - Z: Button1
   - X: Button2
+  - C: Button3. In the menu this opens the [recently played list](#recently-played-games).
 
 ## Using metadata.
 
