@@ -180,11 +180,18 @@ message(STATUS "PicoDVI line buffers: ${DVI_N_LINE_BUFFERS}")
 # cleared. bld.sh always deletes build/ first, so it is unaffected. To clear it
 # in place: cmake -DEMU_FRAME_STATS=0 build, or just delete build/.
 # ---------------------------------------------------------------------------
+# HSTX_DEBUG is the pico_hdmi driver's own switch (video_output.c, default 0). It
+# adds a 1Hz dump of frame/IRQ rates, every relevant clock and HSTX/DMA register,
+# and -- the useful part here -- di_lvl and underrun for the HDMI audio queue:
+#   video rate: 60 frames/s, ... di_lvl=NNN underrun=NN
+# Nothing forwarded it to the compiler before, so it is declared here alongside
+# the emulator's own diagnostics.
 option(EMU_FRAME_STATS "Print average/peak emu_run_frame() time over UART once a second" OFF)
 option(NORENDER "Draw into a throwaway buffer instead of the display (timing diagnostics)" OFF)
-if (EMU_FRAME_STATS OR NORENDER)
-    message(WARNING "Diagnostic build: EMU_FRAME_STATS=${EMU_FRAME_STATS} NORENDER=${NORENDER}."
-                    " NORENDER shows no picture. Not for release.")
+option(HSTX_DEBUG "Print HSTX video/audio queue diagnostics over UART once a second" OFF)
+if (EMU_FRAME_STATS OR NORENDER OR HSTX_DEBUG)
+    message(WARNING "Diagnostic build: EMU_FRAME_STATS=${EMU_FRAME_STATS} NORENDER=${NORENDER}"
+                    " HSTX_DEBUG=${HSTX_DEBUG}. NORENDER shows no picture. Not for release.")
 endif()
 
 add_executable(${projectname}
@@ -286,6 +293,7 @@ target_compile_definitions(${projectname} PUBLIC
     # an expression.
     EMU_FRAME_STATS=$<BOOL:${EMU_FRAME_STATS}>
     NORENDER=$<BOOL:${NORENDER}>
+    HSTX_DEBUG=$<BOOL:${HSTX_DEBUG}>
     DVI_N_LINE_BUFFERS=${DVI_N_LINE_BUFFERS}
     WIIPAD_DELAYED_START=${WIIPAD_DELAYED_START} # Delay Wii Pad initialization to avoid I2C errors
     ENABLEDVI=1
